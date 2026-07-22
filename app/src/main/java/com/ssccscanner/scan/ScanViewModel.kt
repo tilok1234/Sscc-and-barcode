@@ -24,6 +24,14 @@ data class PendingScan(
     val timestamp: Long,
 )
 
+/**
+ * BARCODE: live viewfinder auto-decodes symbols the moment they're visible.
+ * LABEL: live decoding is off — the user frames the whole label and presses
+ * the shutter; the photo goes through barcode + OCR together. Prevents a
+ * stray barcode from firing the scanner while aiming at the full label.
+ */
+enum class ScanMode { BARCODE, LABEL }
+
 sealed interface ScanFlow {
     data object Ready : ScanFlow
     data object Processing : ScanFlow
@@ -33,6 +41,7 @@ sealed interface ScanFlow {
 
 data class ScanUiState(
     val flow: ScanFlow = ScanFlow.Ready,
+    val scanMode: ScanMode = ScanMode.BARCODE,
     val batchMode: Boolean = false,
     val batchCount: Int = 0,
     val activeDocumentName: String = "…",
@@ -68,10 +77,23 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(activeDocumentName = doc?.name ?: "…") }
             }
         }
+        viewModelScope.launch {
+            repository.scanMode.collect { stored ->
+                val mode = if (stored == "label") ScanMode.LABEL else ScanMode.BARCODE
+                _state.update { if (it.scanMode == mode) it else it.copy(scanMode = mode) }
+            }
+        }
+    }
+
+    fun setScanMode(mode: ScanMode) {
+        resetAggregation()
+        _state.update { it.copy(scanMode = mode) }
+        viewModelScope.launch { repository.setScanMode(if (mode == ScanMode.LABEL) "label" else "barcode") }
     }
 
     fun onBarcodesDetected(barcodes: List<DetectedBarcode>) {
         if (_state.value.flow != ScanFlow.Ready) return
+        if (_state.value.scanMode != ScanMode.BARCODE) return
 
         val decoded = barcodes.mapNotNull { BarcodeInterpreter.interpret(it.rawValue, it.formatName) }
         if (decoded.isNotEmpty()) {

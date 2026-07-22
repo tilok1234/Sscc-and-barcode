@@ -80,6 +80,7 @@ import com.ssccscanner.scan.BarcodeAnalyzer
 import com.ssccscanner.scan.DetectedBarcode
 import com.ssccscanner.scan.PendingScan
 import com.ssccscanner.scan.ScanFlow
+import com.ssccscanner.scan.ScanMode
 import com.ssccscanner.scan.ScanViewModel
 import com.ssccscanner.ui.AppIcons
 import com.ssccscanner.ui.DocumentPickerSheet
@@ -145,13 +146,16 @@ fun ScanScreen(
             is ScanFlow.Ready -> {
                 if (hasCameraPermission) {
                     CameraPreviewLayer(
+                        liveScanning = state.scanMode == ScanMode.BARCODE,
                         onBarcodes = viewModel::onBarcodesDetected,
                         imageCapture = imageCapture,
                     )
                     ReadyOverlay(
+                        scanMode = state.scanMode,
                         batchMode = state.batchMode,
                         batchCount = state.batchCount,
                         documentName = state.activeDocumentName,
+                        onSetMode = viewModel::setScanMode,
                         onToggleBatch = viewModel::setBatchMode,
                         onUpload = pickImage,
                         onCapture = capturePhoto,
@@ -204,6 +208,7 @@ fun ScanScreen(
 
 @Composable
 private fun CameraPreviewLayer(
+    liveScanning: Boolean,
     onBarcodes: (List<DetectedBarcode>) -> Unit,
     imageCapture: ImageCapture,
 ) {
@@ -213,7 +218,9 @@ private fun CameraPreviewLayer(
         PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
     }
 
-    DisposableEffect(lifecycleOwner) {
+    // Rebinds when liveScanning flips: label mode runs preview + capture only,
+    // so a stray barcode can't trigger a scan while the user frames the label.
+    DisposableEffect(lifecycleOwner, liveScanning) {
         val analysisExecutor = Executors.newSingleThreadExecutor()
         val providerFuture = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
@@ -221,13 +228,25 @@ private fun CameraPreviewLayer(
             val p = providerFuture.get()
             provider = p
             val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-            val analysis = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build()
-                .also { it.setAnalyzer(analysisExecutor, BarcodeAnalyzer(onBarcodes)) }
+            val useCases = buildList {
+                add(preview)
+                add(imageCapture)
+                if (liveScanning) {
+                    add(
+                        ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .also { it.setAnalyzer(analysisExecutor, BarcodeAnalyzer(onBarcodes)) },
+                    )
+                }
+            }
             try {
                 p.unbindAll()
-                p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis, imageCapture)
+                p.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    *useCases.toTypedArray(),
+                )
             } catch (_: Exception) {
                 // Camera unavailable (emulator without camera etc.) — leave preview black.
             }
@@ -246,9 +265,11 @@ private fun CameraPreviewLayer(
 
 @Composable
 private fun ReadyOverlay(
+    scanMode: ScanMode,
     batchMode: Boolean,
     batchCount: Int,
     documentName: String,
+    onSetMode: (ScanMode) -> Unit,
     onToggleBatch: (Boolean) -> Unit,
     onUpload: () -> Unit,
     onCapture: () -> Unit,
@@ -315,17 +336,24 @@ private fun ReadyOverlay(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Scanning reticle
+        // Scanning reticle — barcode-shaped, or taller to frame a whole label
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Box(
                 modifier = Modifier
-                    .size(width = 264.dp, height = 160.dp)
+                    .size(
+                        width = if (scanMode == ScanMode.BARCODE) 264.dp else 280.dp,
+                        height = if (scanMode == ScanMode.BARCODE) 160.dp else 330.dp,
+                    )
                     .border(1.5.dp, Tokens.ink(0.4f), RoundedCornerShape(14.dp)),
             )
         }
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Point the camera at the label's barcodes.\nThey're read automatically.",
+            text = if (scanMode == ScanMode.BARCODE) {
+                "Point the camera at the label's barcodes.\nThey're read automatically."
+            } else {
+                "Frame the whole label, then press the shutter.\nBarcodes and printed text are read together."
+            },
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             color = Tokens.ink(0.7f),
@@ -335,6 +363,30 @@ private fun ReadyOverlay(
         )
 
         Spacer(modifier = Modifier.weight(1f))
+
+        // Mode toggle: instant barcode auto-scan vs shutter-driven full-label read
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Row(
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(100.dp))
+                    .border(1.dp, Tokens.ink(0.22f), RoundedCornerShape(100.dp))
+                    .padding(3.dp),
+            ) {
+                ModeSegment(
+                    text = "Barcode",
+                    selected = scanMode == ScanMode.BARCODE,
+                    onClick = { onSetMode(ScanMode.BARCODE) },
+                )
+                ModeSegment(
+                    text = "Label",
+                    selected = scanMode == ScanMode.LABEL,
+                    onClick = { onSetMode(ScanMode.LABEL) },
+                )
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
@@ -380,6 +432,31 @@ private fun ReadyOverlay(
             }
         }
         Spacer(modifier = Modifier.height(26.dp))
+    }
+}
+
+@Composable
+private fun ModeSegment(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .background(
+                if (selected) Tokens.Accent else Color.Transparent,
+                RoundedCornerShape(100.dp),
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+    ) {
+        Text(
+            text = text,
+            color = if (selected) Tokens.OnAccent else Tokens.ink(0.7f),
+            fontFamily = PlexSans,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+        )
     }
 }
 

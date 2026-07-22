@@ -132,6 +132,16 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         context.prefs.edit { it[batchModeKey] = on }
     }
 
+    // --- Scan mode (barcode = live auto-scan, label = shutter-driven full-label read) ---
+
+    private val scanModeKey = stringPreferencesKey("scan_mode")
+
+    val scanMode: Flow<String> = context.prefs.data.map { it[scanModeKey] ?: "barcode" }
+
+    suspend fun setScanMode(mode: String) {
+        context.prefs.edit { it[scanModeKey] = mode }
+    }
+
     private fun newId(): String = UUID.randomUUID().toString()
 
     companion object {
