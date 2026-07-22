@@ -11,12 +11,28 @@ android {
     namespace = "com.ssccscanner"
     compileSdk = 35
 
+    // CI builds get an ever-increasing versionCode so each APK installs as an
+    // update over the previous one; local builds fall back to 1.
+    val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+
     defaultConfig {
         applicationId = "com.ssccscanner"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = ciRunNumber ?: 1
+        versionName = "0.1.${ciRunNumber ?: 0}"
+    }
+
+    signingConfigs {
+        // Fixed debug keystore committed to the repo (standard well-known debug
+        // credentials — grants nothing). Without it, every CI runner generates
+        // its own key and Android rejects each new APK as a signature mismatch.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
