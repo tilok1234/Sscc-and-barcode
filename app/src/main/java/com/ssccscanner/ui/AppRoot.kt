@@ -42,7 +42,7 @@ fun AppRoot() {
     Column(modifier = Modifier.fillMaxSize().background(Tokens.Surface)) {
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (activeTab) {
-                AppTab.Scan -> ScanTabPlaceholder()
+                AppTab.Scan -> com.ssccscanner.ui.scan.ScanScreen()
                 AppTab.Library -> LibraryTabPlaceholder()
             }
         }
@@ -51,30 +51,6 @@ fun AppRoot() {
             onSelect = { activeTab = it },
             libraryBadgeCount = 0,
         )
-    }
-}
-
-@Composable
-private fun ScanTabPlaceholder() {
-    Box(
-        modifier = Modifier.fillMaxSize().background(Tokens.CameraSurface),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = "Scan a shipping label",
-                color = Tokens.TextPrimary,
-                fontFamily = PlexSans,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp,
-            )
-            Text(
-                text = "Camera scanning arrives in Pass 3.",
-                color = Tokens.ink(0.5f),
-                fontFamily = PlexSans,
-                fontSize = 12.5.sp,
-            )
-        }
     }
 }
 

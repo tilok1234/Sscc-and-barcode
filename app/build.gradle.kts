@@ -48,7 +48,17 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.androidx.exifinterface)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
