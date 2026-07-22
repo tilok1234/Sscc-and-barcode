@@ -1,20 +1,24 @@
 package com.ssccscanner.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,10 +26,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ssccscanner.ui.library.LibraryScreen
+import com.ssccscanner.ui.scan.ScanScreen
 import com.ssccscanner.ui.theme.PlexSans
 import com.ssccscanner.ui.theme.Tokens
 
@@ -33,36 +39,32 @@ enum class AppTab { Scan, Library }
 
 /**
  * Single persistent app shell — two tabs, no routing, matching the handoff's
- * state model. Screen contents are built out in later passes.
+ * state model.
  */
 @Composable
 fun AppRoot() {
     var activeTab by rememberSaveable { mutableStateOf(AppTab.Scan) }
+    val toast = remember { ToastController() }
+    val documentsViewModel: DocumentsViewModel = viewModel()
+    val totalScans by documentsViewModel.totalScanCount.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(Tokens.Surface)) {
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (activeTab) {
-                AppTab.Scan -> com.ssccscanner.ui.scan.ScanScreen()
-                AppTab.Library -> LibraryTabPlaceholder()
+    CompositionLocalProvider(LocalToast provides toast) {
+        Box(modifier = Modifier.fillMaxSize().background(Tokens.Surface)) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    when (activeTab) {
+                        AppTab.Scan -> ScanScreen(documentsViewModel = documentsViewModel)
+                        AppTab.Library -> LibraryScreen(viewModel = documentsViewModel)
+                    }
+                }
+                BottomNav(
+                    activeTab = activeTab,
+                    onSelect = { activeTab = it },
+                    libraryBadgeCount = totalScans,
+                )
             }
+            ToastHost(toast)
         }
-        BottomNav(
-            activeTab = activeTab,
-            onSelect = { activeTab = it },
-            libraryBadgeCount = 0,
-        )
-    }
-}
-
-@Composable
-private fun LibraryTabPlaceholder() {
-    Box(modifier = Modifier.fillMaxSize().background(Tokens.Surface), contentAlignment = Alignment.Center) {
-        Text(
-            text = "Library arrives in Pass 5.",
-            color = Tokens.ink(0.5f),
-            fontFamily = PlexSans,
-            fontSize = 12.5.sp,
-        )
     }
 }
 
@@ -73,7 +75,7 @@ fun BottomNav(
     libraryBadgeCount: Int,
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(Tokens.Panel).navigationBarsPadding()) {
-        Box(modifier = Modifier.fillMaxWidth().size(width = 0.dp, height = 1.dp).background(Tokens.ink(0.12f)))
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Tokens.ink(0.12f)))
         Row(modifier = Modifier.fillMaxWidth()) {
             NavItem(
                 label = "Scan",
@@ -122,7 +124,7 @@ private fun NavItem(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(start = 14.dp)
-                        .background(Tokens.Accent, shape = androidx.compose.foundation.shape.RoundedCornerShape(100.dp))
+                        .background(Tokens.Accent, shape = RoundedCornerShape(100.dp))
                         .padding(horizontal = 4.dp),
                 ) {
                     Text(
