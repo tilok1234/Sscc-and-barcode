@@ -6,8 +6,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssccscanner.SsccApp
 import com.ssccscanner.core.BarcodeInterpreter
-import com.ssccscanner.core.Confidence
 import com.ssccscanner.core.FieldMerger
 import com.ssccscanner.core.ScanFields
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +16,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** One completed scan, pre-persistence (the Room layer arrives in Pass 4). */
+/** One completed scan as shown on the result screen. */
 data class PendingScan(
+    val scanId: String?,           // Room id once persisted
     val fields: ScanFields,
     val thumbnail: ByteArray?,
     val timestamp: Long,
@@ -34,9 +35,12 @@ data class ScanUiState(
     val flow: ScanFlow = ScanFlow.Ready,
     val batchMode: Boolean = false,
     val batchCount: Int = 0,
+    val activeDocumentName: String = "…",
 )
 
 class ScanViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val repository = (app as SsccApp).repository
 
     private val _state = MutableStateFlow(ScanUiState())
     val state: StateFlow<ScanUiState> = _state
@@ -49,6 +53,22 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
 
     private val errorMessage =
         "Couldn't find an SSCC or batch number on this label. Try getting closer and keeping the text in focus."
+
+    init {
+        viewModelScope.launch {
+            repository.ensureDefaultDocument()
+        }
+        viewModelScope.launch {
+            repository.batchMode.collect { on ->
+                _state.update { if (it.batchMode == on) it else it.copy(batchMode = on) }
+            }
+        }
+        viewModelScope.launch {
+            repository.activeDocument.collect { doc ->
+                _state.update { it.copy(activeDocumentName = doc?.name ?: "…") }
+            }
+        }
+    }
 
     fun onBarcodesDetected(barcodes: List<DetectedBarcode>) {
         if (_state.value.flow != ScanFlow.Ready) return
@@ -89,17 +109,37 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun finalizeScan(fields: ScanFields, sourceBitmap: Bitmap?) {
-        val scan = PendingScan(
-            fields = fields,
-            thumbnail = sourceBitmap?.let { ImageUtils.thumbnailJpeg(it) },
-            timestamp = System.currentTimeMillis(),
-        )
         resetAggregation()
+        val timestamp = System.currentTimeMillis()
+        val thumbnail = sourceBitmap?.let { ImageUtils.thumbnailJpeg(it) }
+        // Show the result immediately; persistence completes in the background.
         _state.update {
             it.copy(
-                flow = ScanFlow.Result(scan),
+                flow = ScanFlow.Result(PendingScan(null, fields, thumbnail, timestamp)),
                 batchCount = if (it.batchMode) it.batchCount + 1 else it.batchCount,
             )
+        }
+        viewModelScope.launch {
+            val saved = repository.addScan(fields, thumbnail, timestamp)
+            _state.update { s ->
+                val flow = s.flow
+                if (flow is ScanFlow.Result && flow.scan.timestamp == timestamp) {
+                    s.copy(flow = ScanFlow.Result(flow.scan.copy(scanId = saved.id)))
+                } else {
+                    s
+                }
+            }
+        }
+    }
+
+    /** Manual corrections from the result screen's edit mode. */
+    fun saveEdits(fields: ScanFields) {
+        val current = _state.value.flow
+        if (current !is ScanFlow.Result) return
+        val updated = current.scan.copy(fields = fields)
+        _state.update { it.copy(flow = ScanFlow.Result(updated)) }
+        updated.scanId?.let { id ->
+            viewModelScope.launch { repository.updateScanFields(id, fields) }
         }
     }
 
@@ -110,6 +150,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBatchMode(on: Boolean) {
         _state.update { it.copy(batchMode = on, batchCount = 0) }
+        viewModelScope.launch { repository.setBatchMode(on) }
     }
 
     fun dismissError() = scanAgain()
