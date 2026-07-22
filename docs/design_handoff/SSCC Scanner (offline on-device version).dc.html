@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    @keyframes sscc-spin { from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+    @keyframes sscc-toast { 0%{ opacity:0; transform:translate(-50%,10px); } 12%{ opacity:1; transform:translate(-50%,0); } 88%{ opacity:1; transform:translate(-50%,0); } 100%{ opacity:0; transform:translate(-50%,10px); } }
+    body { margin:0; background:#05070a; }
+  </style>
+</helmet>
+
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0b0d0c"></rect><g transform="translate(30,30)"><rect x="0" y="8" width="4" height="24" fill="#F2A93C"></rect><rect x="7" y="8" width="2" height="24" fill="#F2A93C"></rect><rect x="12" y="8" width="5" height="24" fill="#F2A93C"></rect><rect x="20" y="8" width="3" height="24" fill="#F2A93C"></rect><rect x="26" y="8" width="6" height="24" fill="#F2A93C"></rect><rect x="35" y="8" width="2" height="24" fill="#F2A93C"></rect><rect x="0" y="0" width="40" height="3" rx="1.5" fill="#EDEDE9"></rect><rect x="0" y="37" width="40" height="3" rx="1.5" fill="#EDEDE9"></rect></g></svg>
+</template>
+
+<div style="min-height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:56px 24px;background:radial-gradient(circle at 30% 15%, #12161a 0%, #05070a 62%);font-family:'IBM Plex Sans',system-ui,sans-serif;">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+      <span style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.18em;text-transform:uppercase;color:rgba(237,237,233,.4);">Prototype</span>
+      <span style="font:700 20px 'IBM Plex Sans',sans-serif;color:#EDEDE9;">SSCC Scanner</span>
+    </div>
+
+    <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="412px,892px">
+      <div style="width:100%;height:100%;display:flex;flex-direction:column;background:#0b0d0c;overflow:hidden;position:relative;font-family:'IBM Plex Sans',system-ui,sans-serif;">
+
+        <sc-if value="{{ isScanTab }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1;position:relative;overflow:hidden;background:#000;">
+
+            <div style="position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;pointer-events:none;">
+              <span style="font:700 13px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,245,240,.85);">SSCC Scanner</span>
+              <sc-if value="{{ batchMode }}" hint-placeholder-val="{{ false }}">
+                <span style="font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1a1204;background:{{ accent }};padding:4px 9px;border-radius:100px;">Batch · {{ batchCount }}</span>
+              </sc-if>
+            </div>
+
+            <sc-if value="{{ flowLive }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:44px;left:0;right:0;z-index:7;display:flex;justify-content:center;pointer-events:none;">
+                <button onClick="{{ onOpenDocPicker }}" style="pointer-events:auto;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:100px;background:rgba(0,0,0,.55);border:1px solid rgba(237,237,233,.22);color:#F5F5F0;font:600 11.5px 'IBM Plex Sans',sans-serif;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="1.6"></path></svg>
+                  <span>Filing to {{ activeDocumentName }}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+              </div>
+
+              <div style="position:absolute;inset:0;background:#0e1113;display:flex;align-items:center;justify-content:center;">
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" style="opacity:.12;"><path d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.5A1.5 1.5 0 0 1 9.3 4h5.4a1.5 1.5 0 0 1 1.3.85L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="#EDEDE9" stroke-width="1.6"></path><circle cx="12" cy="13" r="3.2" stroke="#EDEDE9" stroke-width="1.6"></circle></svg>
+              </div>
+
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:32px;">
+                <div style="text-align:center;">
+                  <div style="font:600 15px 'IBM Plex Sans',sans-serif;color:#EDEDE9;">Scan a shipping label</div>
+                  <div style="font:400 12.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.5);margin-top:4px;max-width:240px;">Take a new photo, or upload one you already have.</div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:260px;">
+                  <button onClick="{{ onOpenCameraInput }}" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 0;border-radius:12px;background:{{ accent }};border:none;color:#1a1204;font:700 14.5px 'IBM Plex Sans',sans-serif;transition:transform .08s ease;" style-active="transform:scale(.97);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.5A1.5 1.5 0 0 1 9.3 4h5.4a1.5 1.5 0 0 1 1.3.85L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="1.8"></path><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.8"></circle></svg>
+                    Start camera
+                  </button>
+                  <button onClick="{{ onOpenFilePicker }}" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 0;border-radius:12px;background:rgba(237,237,233,.08);border:1px solid rgba(237,237,233,.18);color:#EDEDE9;font:700 14.5px 'IBM Plex Sans',sans-serif;transition:transform .08s ease;" style-active="transform:scale(.97);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="15" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect><path d="M7 4h11a2 2 0 0 1 2 2v11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path><circle cx="8.5" cy="12" r="1.3" fill="currentColor"></circle><path d="M4.5 17.5l3.5-3.5 2.5 2.5 4-4 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    Upload photo
+                  </button>
+                </div>
+
+                <button onClick="{{ onToggleBatchMode }}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:100px;background:transparent;border:none;">
+                  <div style="width:34px;height:20px;border-radius:100px;background:{{ batchToggleBg }};position:relative;transition:background .15s ease;flex-shrink:0;">
+                    <div style="position:absolute;top:2px;left:{{ batchKnobLeft }};width:16px;height:16px;border-radius:50%;background:#EDEDE9;transition:left .15s ease;"></div>
+                  </div>
+                  <span style="font:600 12px 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.7);">Batch mode — scan labels back-to-back</span>
+                </button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ flowProcessing }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:10;">
+                {{ processingBgEl }}
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+                  <div style="width:40px;height:40px;border-radius:50%;border:3px solid rgba(245,245,240,.2);border-top-color:{{ accent }};animation:sscc-spin 0.9s linear infinite;"></div>
+                  <span style="font:600 13px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#F5F5F0;">Reading label…</span>
+                  <span style="font:500 11px 'IBM Plex Sans',sans-serif;color:rgba(245,245,240,.5);">On-device — nothing leaves your phone</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ flowResult }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:12;background:#0b0d0c;display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:{{ resultDotColor }};flex-shrink:0;"></div>
+                  <span style="flex:1;font:600 13px 'IBM Plex Sans',sans-serif;color:#EDEDE9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Saved to {{ currentScan.documentName }}</span>
+                  <sc-if value="{{ notEditingResult }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ onStartEdit }}" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid rgba(237,237,233,.18);background:rgba(237,237,233,.04);color:#EDEDE9;font:600 11px 'IBM Plex Sans',sans-serif;flex-shrink:0;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                      Edit
+                    </button>
+                  </sc-if>
+                </div>
+                <div style="flex:1;overflow:auto;padding:18px 18px 8px;display:flex;flex-direction:column;gap:16px;">
+                  {{ resultImgEl }}
+
+                  <sc-if value="{{ showLowConfidenceNotice }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:rgba(229,72,77,.12);border:1px solid rgba(229,72,77,.3);">
+                      <span style="font:600 11px 'IBM Plex Sans',sans-serif;color:#F5A3A6;">Low confidence — double-check against the printed label.</span>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ notEditingResult }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <span style="font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">SSCC</span>
+                        <button onClick="{{ onCopySSCC }}" style="font:600 11px 'IBM Plex Sans',sans-serif;color:{{ accent }};background:transparent;border:none;padding:4px 6px;">Copy</button>
+                      </div>
+                      <div style="font:600 21px 'IBM Plex Mono',monospace;letter-spacing:.02em;color:#F5F5F0;word-break:break-all;">{{ currentScan.ssccDisplay }}</div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <span style="font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Batch no.</span>
+                        <button onClick="{{ onCopyBatch }}" style="font:600 11px 'IBM Plex Sans',sans-serif;color:{{ accent }};background:transparent;border:none;padding:4px 6px;">Copy</button>
+                      </div>
+                      <div style="font:600 18px 'IBM Plex Mono',monospace;letter-spacing:.02em;color:#F5F5F0;">{{ currentScan.batchDisplay }}</div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding-top:2px;">
+                      <div style="display:flex;flex-direction:column;gap:4px;">
+                        <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">GTIN / EAN</span>
+                        <span style="font:600 13px 'IBM Plex Mono',monospace;color:#F5F5F0;word-break:break-all;">{{ currentScan.gtinDisplay }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:4px;">
+                        <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Best before</span>
+                        <span style="font:600 13px 'IBM Plex Mono',monospace;color:#F5F5F0;">{{ currentScan.bestBeforeDisplay }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:4px;">
+                        <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Quantity</span>
+                        <span style="font:600 13px 'IBM Plex Mono',monospace;color:#F5F5F0;">{{ currentScan.quantityDisplay }}</span>
+                      </div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ editingResult }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                      <div style="display:flex;flex-direction:column;gap:5px;">
+                        <span style="font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">SSCC (18 digits)</span>
+                        <input type="text" inputMode="numeric" value="{{ editVals.sscc }}" onChange="{{ onEditSSCC }}" style="padding:12px;border-radius:9px;background:rgba(237,237,233,.06);border:1px solid {{ editSSCCBorder }};color:#F5F5F0;font:600 16px 'IBM Plex Mono',monospace;letter-spacing:.03em;width:100%;box-sizing:border-box;"></input>
+                        <sc-if value="{{ editSSCCInvalid }}" hint-placeholder-val="{{ false }}">
+                          <span style="font:500 10.5px 'IBM Plex Sans',sans-serif;color:#F5A3A6;">{{ editSSCCHint }}</span>
+                        </sc-if>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:5px;">
+                        <span style="font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Batch no.</span>
+                        <input type="text" value="{{ editVals.batchNo }}" onChange="{{ onEditBatch }}" style="padding:12px;border-radius:9px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.16);color:#F5F5F0;font:600 15px 'IBM Plex Mono',monospace;width:100%;box-sizing:border-box;"></input>
+                      </div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div style="display:flex;flex-direction:column;gap:5px;">
+                          <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">GTIN / EAN</span>
+                          <input type="text" inputMode="numeric" value="{{ editVals.gtin }}" onChange="{{ onEditGtin }}" style="padding:11px;border-radius:9px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.16);color:#F5F5F0;font:600 13px 'IBM Plex Mono',monospace;width:100%;box-sizing:border-box;"></input>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:5px;">
+                          <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Best before</span>
+                          <input type="text" value="{{ editVals.bestBefore }}" onChange="{{ onEditBestBefore }}" style="padding:11px;border-radius:9px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.16);color:#F5F5F0;font:600 13px 'IBM Plex Mono',monospace;width:100%;box-sizing:border-box;"></input>
+                        </div>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:5px;max-width:50%;">
+                        <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Quantity</span>
+                        <input type="text" inputMode="numeric" value="{{ editVals.quantity }}" onChange="{{ onEditQuantity }}" style="padding:11px;border-radius:9px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.16);color:#F5F5F0;font:600 13px 'IBM Plex Mono',monospace;width:100%;box-sizing:border-box;"></input>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <div style="display:flex;gap:10px;padding:14px 18px 18px;border-top:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <sc-if value="{{ notEditingResult }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ onShareCurrent }}" style="flex:1;padding:13px 0;border-radius:10px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.14);color:#EDEDE9;font:600 13px 'IBM Plex Sans',sans-serif;">Share</button>
+                    <sc-if value="{{ batchMode }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ onNextScan }}" style="flex:1.4;padding:13px 0;border-radius:10px;background:{{ accent }};border:none;color:#1a1204;font:700 13px 'IBM Plex Sans',sans-serif;">Next scan →</button>
+                    </sc-if>
+                    <sc-if value="{{ batchModeOff }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ onRetake }}" style="flex:1;padding:13px 0;border-radius:10px;background:{{ accent }};border:none;color:#1a1204;font:600 13px 'IBM Plex Sans',sans-serif;">Scan another</button>
+                    </sc-if>
+                  </sc-if>
+                  <sc-if value="{{ editingResult }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ onCancelEdit }}" style="flex:1;padding:13px 0;border-radius:10px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.14);color:#EDEDE9;font:600 13px 'IBM Plex Sans',sans-serif;">Cancel</button>
+                    <button onClick="{{ onSaveEdit }}" style="flex:1;padding:13px 0;border-radius:10px;background:{{ accent }};border:none;color:#1a1204;font:600 13px 'IBM Plex Sans',sans-serif;">Save changes</button>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ flowError }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:12;background:#0b0d0c;display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#E5484D;"></div>
+                  <span style="font:600 13px 'IBM Plex Sans',sans-serif;color:#EDEDE9;">Couldn't read label</span>
+                </div>
+                <div style="flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;text-align:center;">
+                  {{ errorImgEl }}
+                  <div style="font:400 13px/1.5 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.6);max-width:260px;">{{ currentScan.errorMsg }}</div>
+                </div>
+                <div style="padding:14px 18px 18px;border-top:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <button onClick="{{ onRetake }}" style="width:100%;padding:13px 0;border-radius:10px;background:{{ accent }};border:none;color:#1a1204;font:600 13px 'IBM Plex Sans',sans-serif;">Try again</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <input type="file" accept="image/*" capture="environment" ref="{{ cameraInputRef }}" onChange="{{ onFilePicked }}" style="display:none;"></input>
+            <input type="file" accept="image/*" ref="{{ fileInputRef }}" onChange="{{ onFilePicked }}" style="display:none;"></input>
+
+            <sc-if value="{{ docPickerOpen }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ onCloseDocPicker }}" style="position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding-top:88px;">
+                <div onClick="{{ onStopPropagation }}" style="width:88%;max-height:64%;background:#101314;border-radius:16px;border:1px solid rgba(237,237,233,.12);display:flex;flex-direction:column;box-shadow:0 16px 40px rgba(0,0,0,.5);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;flex-shrink:0;">
+                    <span style="font:700 14px 'IBM Plex Sans',sans-serif;color:#EDEDE9;">File to document</span>
+                    <button onClick="{{ onCloseDocPicker }}" style="width:28px;height:28px;border-radius:8px;background:transparent;border:none;color:rgba(237,237,233,.5);font:16px/1 sans-serif;">✕</button>
+                  </div>
+                  <div style="flex:1;overflow:auto;padding:0 10px;display:flex;flex-direction:column;gap:2px;">
+                    <sc-for list="{{ documents }}" as="doc" hint-placeholder-count="2">
+                      <button onClick="{{ doc.onSelect }}" style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-radius:10px;background:transparent;border:none;text-align:left;">
+                        <div style="width:18px;height:18px;border-radius:50%;border:2px solid {{ doc.radioColor }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                          <sc-if value="{{ doc.isActive }}" hint-placeholder-val="{{ false }}">
+                            <div style="width:9px;height:9px;border-radius:50%;background:{{ accent }};"></div>
+                          </sc-if>
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                          <div style="font:600 13px 'IBM Plex Sans',sans-serif;color:#EDEDE9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ doc.name }}</div>
+                          <div style="font:400 11px 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.45);margin-top:1px;">{{ doc.countLabel }}</div>
+                        </div>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;gap:8px;padding:14px 18px 20px;border-top:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                    <input type="text" placeholder="New document name" value="{{ newDocName }}" onChange="{{ onNewDocNameChange }}" style="flex:1;padding:11px 12px;border-radius:9px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.16);color:#EDEDE9;font:500 13px 'IBM Plex Sans',sans-serif;"></input>
+                    <button onClick="{{ onCreateDocument }}" disabled="{{ createDocDisabled }}" style="padding:0 18px;border-radius:9px;background:{{ accent }};border:none;color:#1a1204;font:600 13px 'IBM Plex Sans',sans-serif;opacity:{{ createDocOpacity }};">Create</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isLibraryTab }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;background:#0b0d0c;">
+
+            <sc-if value="{{ showDocList }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 18px 12px;flex-shrink:0;">
+                <div>
+                  <div style="font:700 17px 'IBM Plex Sans',sans-serif;color:#EDEDE9;">Library</div>
+                  <div style="font:500 12px 'IBM Plex Mono',monospace;color:rgba(237,237,233,.5);margin-top:2px;">{{ documentCountLabel }}</div>
+                </div>
+                <button onClick="{{ onOpenDocPicker }}" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid rgba(237,237,233,.18);background:rgba(237,237,233,.04);color:#EDEDE9;font:600 12px 'IBM Plex Sans',sans-serif;">+ New</button>
+              </div>
+
+              <div style="flex:1;overflow:auto;padding:0 10px 10px;display:flex;flex-direction:column;gap:2px;">
+                <sc-for list="{{ documentRows }}" as="doc" hint-placeholder-count="2">
+                  <div onClick="{{ doc.onOpen }}" style="display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:10px;cursor:pointer;">
+                    <sc-if value="{{ doc.thumbnail }}" hint-placeholder-val="{{ false }}">
+                      {{ doc.thumbEl }}
+                    </sc-if>
+                    <sc-if value="{{ doc.noThumbnail }}" hint-placeholder-val="{{ true }}">
+                      <div style="width:48px;height:48px;border-radius:8px;background:rgba(237,237,233,.06);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:rgba(237,237,233,.3);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="1.6"></path></svg>
+                      </div>
+                    </sc-if>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font:600 13px 'IBM Plex Sans',sans-serif;color:#EDEDE9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ doc.name }}</div>
+                      <div style="font:400 11px 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.5);margin-top:2px;">{{ doc.subtitle }}</div>
+                    </div>
+                    <button onClick="{{ doc.onDelete }}" style="padding:0 10px;height:30px;border-radius:8px;background:{{ doc.deleteBg }};border:none;color:{{ doc.deleteColor }};font:600 11px 'IBM Plex Sans',sans-serif;flex-shrink:0;white-space:nowrap;">{{ doc.deleteLabel }}</button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showDocDetail }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:8;background:#0b0d0c;display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <button onClick="{{ onCloseLibraryDoc }}" style="width:30px;height:30px;border-radius:8px;background:transparent;border:none;color:#EDEDE9;font:16px/1 sans-serif;flex-shrink:0;">←</button>
+
+                  <sc-if value="{{ notRenamingDoc }}" hint-placeholder-val="{{ true }}">
+                    <div style="flex:1;min-width:0;">
+                      <div style="font:700 14px 'IBM Plex Sans',sans-serif;color:#EDEDE9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ libraryDoc.name }}</div>
+                      <div style="font:500 11px 'IBM Plex Mono',monospace;color:rgba(237,237,233,.5);">{{ libraryDoc.countLabel }}</div>
+                    </div>
+                    <button onClick="{{ onStartRenameDoc }}" style="width:30px;height:30px;border-radius:8px;background:transparent;border:1px solid rgba(237,237,233,.14);color:rgba(237,237,233,.6);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                    </button>
+                    <button onClick="{{ onExportLibraryDoc }}" disabled="{{ libraryDocEmpty }}" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(237,237,233,.18);background:rgba(237,237,233,.04);color:{{ libraryDocExportColor }};font:600 11px 'IBM Plex Sans',sans-serif;flex-shrink:0;">Export CSV</button>
+                  </sc-if>
+
+                  <sc-if value="{{ renamingDoc }}" hint-placeholder-val="{{ false }}">
+                    <input type="text" value="{{ renameValue }}" onChange="{{ onRenameChange }}" style="flex:1;min-width:0;padding:9px 11px;border-radius:8px;background:rgba(237,237,233,.06);border:1px solid rgba(237,237,233,.2);color:#F5F5F0;font:600 13px 'IBM Plex Sans',sans-serif;"></input>
+                    <button onClick="{{ onSaveRenameDoc }}" style="padding:8px 14px;border-radius:8px;background:{{ accent }};border:none;color:#1a1204;font:600 12px 'IBM Plex Sans',sans-serif;flex-shrink:0;">Save</button>
+                    <button onClick="{{ onCancelRenameDoc }}" style="width:30px;height:30px;border-radius:8px;background:transparent;border:none;color:rgba(237,237,233,.5);font:15px/1 sans-serif;flex-shrink:0;">✕</button>
+                  </sc-if>
+                </div>
+
+                <sc-if value="{{ libraryDocEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px;text-align:center;">
+                    <div style="font:600 14px 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.6);">No scans in this document yet</div>
+                    <div style="font:400 12px/1.5 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.4);max-width:220px;">Scans filed here from the Scan tab will show up in this list.</div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ libraryDocNotEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;overflow:auto;padding:0 10px 10px;display:flex;flex-direction:column;gap:2px;">
+                    <sc-for list="{{ libraryDocScans }}" as="item" hint-placeholder-count="3">
+                      <div onClick="{{ item.onOpen }}" style="display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:10px;cursor:pointer;">
+                        <sc-if value="{{ item.thumbnail }}" hint-placeholder-val="{{ false }}">
+                          {{ item.thumbEl }}
+                        </sc-if>
+                        <sc-if value="{{ item.noThumbnail }}" hint-placeholder-val="{{ true }}">
+                          <div style="width:48px;height:48px;border-radius:8px;background:rgba(237,237,233,.06);flex-shrink:0;"></div>
+                        </sc-if>
+                        <div style="flex:1;min-width:0;">
+                          <div style="font:600 13px 'IBM Plex Mono',monospace;color:#EDEDE9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.ssccDisplay }}</div>
+                          <div style="font:400 11px 'IBM Plex Sans',sans-serif;color:rgba(237,237,233,.5);margin-top:2px;">Batch {{ item.batchDisplay }} · {{ item.relativeTime }}</div>
+                        </div>
+                        <button onClick="{{ item.onDelete }}" style="width:30px;height:30px;border-radius:8px;background:transparent;border:none;color:rgba(237,237,233,.35);font:16px/1 sans-serif;flex-shrink:0;">✕</button>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ scanDetailOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:12;background:#0b0d0c;display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <button onClick="{{ onCloseScanDetail }}" style="width:30px;height:30px;border-radius:8px;background:transparent;border:none;color:#EDEDE9;font:16px/1 sans-serif;">←</button>
+                  <span style="font:600 13px 'IBM Plex Sans',sans-serif;color:#EDEDE9;">{{ scanDetail.relativeTime }} · {{ scanDetail.documentName }}</span>
+                </div>
+                <div style="flex:1;overflow:auto;padding:18px 18px 8px;display:flex;flex-direction:column;gap:16px;">
+                  {{ scanDetailImgEl }}
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                      <span style="font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">SSCC</span>
+                      <button onClick="{{ onCopyDetailSSCC }}" style="font:600 11px 'IBM Plex Sans',sans-serif;color:{{ accent }};background:transparent;border:none;padding:4px 6px;">Copy</button>
+                    </div>
+                    <div style="font:600 21px 'IBM Plex Mono',monospace;letter-spacing:.02em;color:#F5F5F0;word-break:break-all;">{{ scanDetail.ssccDisplay }}</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                      <span style="font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Batch no.</span>
+                      <button onClick="{{ onCopyDetailBatch }}" style="font:600 11px 'IBM Plex Sans',sans-serif;color:{{ accent }};background:transparent;border:none;padding:4px 6px;">Copy</button>
+                    </div>
+                    <div style="font:600 18px 'IBM Plex Mono',monospace;letter-spacing:.02em;color:#F5F5F0;">{{ scanDetail.batchDisplay }}</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding-top:2px;">
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">GTIN / EAN</span>
+                      <span style="font:600 13px 'IBM Plex Mono',monospace;color:#F5F5F0;word-break:break-all;">{{ scanDetail.gtinDisplay }}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Best before</span>
+                      <span style="font:600 13px 'IBM Plex Mono',monospace;color:#F5F5F0;">{{ scanDetail.bestBeforeDisplay }}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <span style="font:600 10px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(237,237,233,.45);">Quantity</span>
+                      <span style="font:600 13px 'IBM Plex Mono',monospace;color:#F5F5F0;">{{ scanDetail.quantityDisplay }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;padding:14px 18px 18px;border-top:1px solid rgba(237,237,233,.08);flex-shrink:0;">
+                  <button onClick="{{ onDeleteDetail }}" style="flex:1;padding:13px 0;border-radius:10px;background:rgba(229,72,77,.12);border:1px solid rgba(229,72,77,.3);color:#F5A3A6;font:600 13px 'IBM Plex Sans',sans-serif;">Delete</button>
+                  <button onClick="{{ onShareDetail }}" style="flex:1;padding:13px 0;border-radius:10px;background:{{ accent }};border:none;color:#1a1204;font:600 13px 'IBM Plex Sans',sans-serif;">Share</button>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showToast }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:50%;bottom:78px;transform:translateX(-50%);z-index:50;padding:10px 18px;border-radius:100px;background:rgba(20,23,26,.95);border:1px solid rgba(237,237,233,.15);color:#EDEDE9;font:600 12px 'IBM Plex Sans',sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:sscc-toast 1.8s ease forwards;white-space:nowrap;">{{ toastMessage }}</div>
+        </sc-if>
+
+        <div style="display:flex;align-items:stretch;border-top:1px solid rgba(237,237,233,.08);background:#101314;flex-shrink:0;">
+          <button onClick="{{ onTabScan }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 8px;background:transparent;border:none;color:{{ scanTabColor }};">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.5A1.5 1.5 0 0 1 9.3 4h5.4a1.5 1.5 0 0 1 1.3.85L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="1.6"></path><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"></circle></svg>
+            <span style="font:600 10.5px 'IBM Plex Sans',sans-serif;letter-spacing:.02em;">Scan</span>
+          </button>
+          <button onClick="{{ onTabLibrary }}" style="flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 8px;background:transparent;border:none;color:{{ libraryTabColor }};">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="1.6"></path></svg>
+            <span style="font:600 10.5px 'IBM Plex Sans',sans-serif;letter-spacing:.02em;">Library</span>
+            <sc-if value="{{ hasHistoryBadge }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:6px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:{{ accent }};color:#1a1204;font:700 9px 'IBM Plex Mono',monospace;display:flex;align-items:center;justify-content:center;">{{ historyBadgeCount }}</div>
+            </sc-if>
+          </button>
+        </div>
+      </div>
+    </x-import>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: {&quot;width&quot;: 480},
+  &quot;accentColor&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#F2A93C&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#F2A93C&quot;, &quot;#5FBF83&quot;, &quot;#4C8BF5&quot;, &quot;#E5484D&quot;], &quot;section&quot;: &quot;Appearance&quot;},
+  &quot;showConfidenceBadge&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Behavior&quot;}
+}">
+class Component extends DCLogic {
+  fileInputRef = React.createRef();
+  cameraInputRef = React.createRef();
+  _toastTimer = null;
+  _confirmTimer = null;
+
+  state = {
+    activeTab: 'scan',
+    flow: 'live',
+    currentScan: null,
+    documents: [],
+    activeDocumentId: null,
+    scans: [],
+    docPickerOpen: false,
+    newDocName: '',
+    libraryDocId: null,
+    confirmDeleteDocId: null,
+    scanDetail: null,
+    toast: null,
+    batchMode: false,
+    batchCount: 0,
+    editingResult: false,
+    editVals: { sscc: '', batchNo: '', gtin: '', bestBefore: '', quantity: '' },
+    renamingDoc: false,
+    renameValue: '',
+  };
+
+  componentDidMount() {
+    let documents = [];
+    let scans = [];
+    let activeDocumentId = null;
+    let batchMode = false;
+    try {
+      const rawDocs = localStorage.getItem('sscc-scanner-documents-v1');
+      if (rawDocs) {
+        const p = JSON.parse(rawDocs);
+        if (Array.isArray(p)) documents = p;
+      }
+    } catch (e) {}
+    try {
+      const rawScans = localStorage.getItem('sscc-scanner-history-v1');
+      if (rawScans) {
+        const p = JSON.parse(rawScans);
+        if (Array.isArray(p)) scans = p;
+      }
+    } catch (e) {}
+    try {
+      activeDocumentId = localStorage.getItem('sscc-scanner-active-doc-v1') || null;
+      batchMode = localStorage.getItem('sscc-scanner-batch-v1') === '1';
+    } catch (e) {}
+
+    let docsChanged = false;
+    if (documents.length === 0) {
+      documents = [{ id: 'doc-' + Date.now(), name: 'General', createdAt: Date.now() }];
+      docsChanged = true;
+    }
+    const validIds = new Set(documents.map((d) => d.id));
+    let scansChanged = false;
+    scans = scans.map((s) => {
+      if (!s.documentId || !validIds.has(s.documentId)) {
+        scansChanged = true;
+        return Object.assign({}, s, { documentId: documents[0].id });
+      }
+      return s;
+    });
+    if (!activeDocumentId || !validIds.has(activeDocumentId)) {
+      activeDocumentId = documents[0].id;
+      docsChanged = true;
+    }
+    if (docsChanged) {
+      this.persistDocuments(documents);
+      this.persistActiveDoc(activeDocumentId);
+    }
+    if (scansChanged) this.persistScans(scans);
+
+    this.setState({ documents, scans, activeDocumentId, batchMode });
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this._toastTimer);
+    clearTimeout(this._confirmTimer);
+  }
+
+  // Live getUserMedia video is unreliable inside sandboxed/embedded preview
+  // frames. Both actions delegate to native file inputs: "Start camera" uses
+  // a capture-attribute input that opens the device's real camera app,
+  // "Upload photo" opens the normal gallery/file picker.
+  openCameraInput = () => {
+    if (this.cameraInputRef.current) this.cameraInputRef.current.click();
+  };
+
+  openFilePicker = () => {
+    if (this.fileInputRef.current) this.fileInputRef.current.click();
+  };
+
+  handleFilePicked = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => this.processImage(reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  toggleBatchMode = () => {
+    const batchMode = !this.state.batchMode;
+    try {
+      localStorage.setItem('sscc-scanner-batch-v1', batchMode ? '1' : '0');
+    } catch (e) {}
+    this.setState({ batchMode, batchCount: 0 });
+  };
+
+  // Downscale/recompress images: big size for OCR quality, small for stored thumbnails.
+  compressImageToBudget = (dataUrl, budgetBytes) => {
+    const budget = budgetBytes || 200000;
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const widths = [1400, 1100, 900, 720, 560, 440, 340, 260];
+        const qualities = [0.85, 0.72, 0.6, 0.48, 0.36, 0.26];
+        let best = null;
+        for (let wi = 0; wi < widths.length; wi++) {
+          const targetW = widths[wi];
+          const scale = Math.min(1, targetW / img.naturalWidth);
+          const cw = Math.max(1, Math.round(img.naturalWidth * scale));
+          const ch = Math.max(1, Math.round(img.naturalHeight * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = cw;
+          canvas.height = ch;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, cw, ch);
+          let fitAtThisSize = false;
+          for (let qi = 0; qi < qualities.length; qi++) {
+            const out = canvas.toDataURL('image/jpeg', qualities[qi]);
+            const b64len = out.length - (out.indexOf(',') + 1);
+            best = out;
+            if (b64len <= budget) {
+              fitAtThisSize = true;
+              break;
+            }
+          }
+          if (fitAtThisSize) break;
+        }
+        resolve(best);
+      };
+      img.onerror = () => reject(new Error('Could not decode image for compression'));
+      img.src = dataUrl;
+    });
+  };
+
+  // --- Fully on-device OCR: Tesseract runs in the browser, nothing is sent
+  // to any AI service and no login/account is needed. Field extraction is
+  // deterministic GS1 pattern-matching on the recognized text. ---
+  runLocalOCR = async (dataUrl) => {
+    const result = await Tesseract.recognize(dataUrl, 'eng');
+    return { text: result.data.text || '', conf: result.data.confidence || 0 };
+  };
+
+  extractFields = (text, ocrConf) => {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const joined = lines.join('\n');
+
+    // SSCC: an 18-digit run (allowing grouping spaces), preferring one that
+    // passes the GS1 check digit; prefer candidates near an "SSCC" label.
+    const digitRuns = [];
+    const runRe = /\(?00\)?[\s.:]*([0-9][0-9 ]{16,40})|([0-9][0-9 ]{16,40})/g;
+    let m;
+    while ((m = runRe.exec(joined)) !== null) {
+      const raw = (m[1] || m[2] || '').replace(/\s+/g, '');
+      for (let start = 0; start + 18 <= raw.length; start++) {
+        digitRuns.push(raw.slice(start, start + 18));
+      }
+    }
+    let sscc = null;
+    let ssccValid = false;
+    const ssccLabelIdx = joined.search(/sscc/i);
+    const scored = digitRuns.map((cand) => {
+      const valid = this.ssccCheckStatus(cand) === 'ok';
+      const pos = joined.replace(/\s+/g, '').indexOf(cand);
+      const nearLabel = ssccLabelIdx >= 0;
+      return { cand, valid, pos, nearLabel };
+    });
+    const validOnes = scored.filter((s) => s.valid);
+    if (validOnes.length) {
+      sscc = validOnes[0].cand;
+      ssccValid = true;
+    } else if (scored.length) {
+      sscc = scored[0].cand;
+    }
+
+    const lineValue = (re) => {
+      for (const l of lines) {
+        const mm = l.match(re);
+        if (mm) return (mm[1] || '').trim() || null;
+      }
+      return null;
+    };
+
+    // Batch: labeled line, else the GS1 application identifier (10) which is the batch/lot number
+    let batchNo = lineValue(/batch(?:\s*(?:no|number))?\s*[.:]?\s*([A-Za-z0-9\-\/ ]{2,24})/i);
+    if (!batchNo) {
+      const ai10 = joined.match(/\(10\)\s*([A-Za-z0-9\-]{2,20})/);
+      if (ai10) batchNo = ai10[1];
+    }
+    if (batchNo) batchNo = batchNo.trim();
+
+    // GTIN/EAN: labeled line (tolerate "EAN NO"/"GTIN NR"), else GS1 AI (01)/(02), else a 13/14-digit run not inside the SSCC
+    let gtin = lineValue(/(?:ean|gtin|content)(?:\s*(?:no|nr|number))?\s*[.:]?\s*([0-9][0-9 ]{7,24})/i);
+    if (gtin) gtin = gtin.replace(/\s+/g, '');
+    if (!gtin) {
+      const ai01 = joined.match(/\(0[12]\)\s*([0-9]{8,14})/);
+      if (ai01) gtin = ai01[1];
+    }
+    if (!gtin) {
+      const g = joined.replace(/\s+/g, ' ').match(/\b(\d{13,14})\b/g);
+      if (g) gtin = g.find((c) => !sscc || !sscc.includes(c)) || null;
+    }
+
+    // Best before: only accept a date-looking value (avoids swallowing OCR noise after the label)
+    const dateRe = /(\d{1,2}[-./ ]\d{1,2}[-./ ]\d{2,4}|\d{4}[-./]\d{1,2}[-./]\d{1,2}|\d{8})/;
+    let bestBefore = null;
+    for (const l of lines) {
+      if (/best\s*before|bbd|expiry|use\s*by|bäst\s*före/i.test(l)) {
+        const dm = l.match(dateRe);
+        if (dm) bestBefore = dm[1];
+        break;
+      }
+    }
+    if (!bestBefore) {
+      const ai15 = joined.match(/\(1[57]\)\s*(\d{6})/); // GS1 (15) best-before / (17) expiry: YYMMDD
+      if (ai15) bestBefore = ai15[1];
+    }
+
+    const quantity = lineValue(/(?:quantity|qty|count|antal)\s*[.:]?\s*([0-9]+)/i);
+
+    let confidence = 'low';
+    if (ssccValid && ocrConf >= 80) confidence = 'high';
+    else if (ssccValid || ocrConf >= 75) confidence = 'medium';
+
+    return { sscc, batch_no: batchNo, gtin, best_before: bestBefore, quantity, confidence };
+  };
+
+  processImage = async (rawDataUrl) => {
+    this.setState({ flow: 'processing', currentScan: { imageDataUrl: rawDataUrl }, editingResult: false });
+    let dataUrl = rawDataUrl;
+    try {
+      // Larger budget than before — OCR quality benefits from resolution.
+      dataUrl = await this.compressImageToBudget(rawDataUrl, 900000);
+    } catch (e) {}
+    try {
+      const ocr = await this.runLocalOCR(dataUrl);
+      const parsed = this.extractFields(ocr.text, ocr.conf);
+      if (!parsed || (!parsed.sscc && !parsed.batch_no)) {
+        this.setState({
+          flow: 'error',
+          currentScan: { imageDataUrl: dataUrl, errorMsg: "Couldn't find an SSCC or batch number on this label. Try getting closer and keeping the text in focus." },
+        });
+        return;
+      }
+      // Only a small thumbnail is persisted — full images blow the localStorage quota.
+      let thumb = dataUrl;
+      try {
+        thumb = await this.compressImageToBudget(dataUrl, 15000);
+      } catch (e) {}
+
+      const entry = {
+        id: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        sscc: parsed.sscc || null,
+        batchNo: parsed.batch_no || null,
+        gtin: parsed.gtin || null,
+        bestBefore: parsed.best_before || null,
+        quantity: parsed.quantity || null,
+        confidence: parsed.confidence || 'medium',
+        timestamp: Date.now(),
+        thumbnail: thumb,
+        imageDataUrl: thumb,
+        documentId: this.state.activeDocumentId,
+      };
+      const scans = [entry, ...this.state.scans].slice(0, 300);
+      this.persistScans(scans);
+      this.setState((s) => ({
+        flow: 'result',
+        currentScan: entry,
+        scans,
+        batchCount: s.batchMode ? s.batchCount + 1 : s.batchCount,
+      }));
+    } catch (err) {
+      this.setState({
+        flow: 'error',
+        currentScan: { imageDataUrl: dataUrl, errorMsg: 'Something went wrong reading this label. ' + (err && err.message ? err.message : 'Please try again.') },
+      });
+    }
+  };
+
+  persistScans = (scans) => {
+    try {
+      localStorage.setItem('sscc-scanner-history-v1', JSON.stringify(scans));
+    } catch (e) {
+      try {
+        const trimmed = scans.slice(0, Math.max(10, Math.floor(scans.length / 2)));
+        localStorage.setItem('sscc-scanner-history-v1', JSON.stringify(trimmed));
+        this.setState({ scans: trimmed });
+      } catch (e2) {}
+    }
+  };
+
+  persistDocuments = (documents) => {
+    try {
+      localStorage.setItem('sscc-scanner-documents-v1', JSON.stringify(documents));
+    } catch (e) {}
+  };
+
+  persistActiveDoc = (id) => {
+    try {
+      localStorage.setItem('sscc-scanner-active-doc-v1', id);
+    } catch (e) {}
+  };
+
+  retake = () => {
+    this.setState({ flow: 'live', currentScan: null, editingResult: false });
+  };
+
+  nextScan = () => {
+    this.setState({ flow: 'live', currentScan: null, editingResult: false });
+    setTimeout(() => this.openCameraInput(), 60);
+  };
+
+  // --- Manual correction of the current result ---
+  startEdit = () => {
+    const c = this.state.currentScan || {};
+    this.setState({
+      editingResult: true,
+      editVals: {
+        sscc: c.sscc || '',
+        batchNo: c.batchNo || '',
+        gtin: c.gtin || '',
+        bestBefore: c.bestBefore || '',
+        quantity: c.quantity || '',
+      },
+    });
+  };
+
+  cancelEdit = () => {
+    this.setState({ editingResult: false });
+  };
+
+  setEditVal = (key, e) => {
+    const v = e.target.value;
+    this.setState((s) => ({ editVals: Object.assign({}, s.editVals, { [key]: v }) }));
+  };
+
+  saveEdit = () => {
+    const { currentScan, editVals, scans } = this.state;
+    if (!currentScan) return;
+    const clean = (v) => {
+      const t = (v || '').trim();
+      return t.length ? t : null;
+    };
+    const updated = Object.assign({}, currentScan, {
+      sscc: clean(editVals.sscc) ? clean(editVals.sscc).replace(/\s+/g, '') : null,
+      batchNo: clean(editVals.batchNo),
+      gtin: clean(editVals.gtin) ? clean(editVals.gtin).replace(/\s+/g, '') : null,
+      bestBefore: clean(editVals.bestBefore),
+      quantity: clean(editVals.quantity),
+      edited: true,
+    });
+    const newScans = scans.map((s) => (s.id === updated.id ? updated : s));
+    this.persistScans(newScans);
+    this.setState({ currentScan: updated, scans: newScans, editingResult: false });
+    this.flashToast('Changes saved');
+  };
+
+  switchTab = (tab) => {
+    this.setState({ activeTab: tab });
+  };
+
+  flashToast = (msg) => {
+    this.setState({ toast: msg });
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => this.setState({ toast: null }), 1800);
+  };
+
+  copyText = (label, value) => {
+    if (!value) {
+      this.flashToast('Nothing to copy');
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(value)
+        .then(() => this.flashToast(label + ' copied'))
+        .catch(() => this.flashToast('Copy failed'));
+    } else {
+      this.flashToast('Copy unavailable');
+    }
+  };
+
+  shareEntry = (entry) => {
+    if (!entry) return;
+    const parts = ['SSCC: ' + (entry.sscc || '—'), 'Batch: ' + (entry.batchNo || '—')];
+    if (entry.gtin) parts.push('GTIN/EAN: ' + entry.gtin);
+    if (entry.bestBefore) parts.push('Best before: ' + entry.bestBefore);
+    if (entry.quantity) parts.push('Quantity: ' + entry.quantity);
+    const text = parts.join('\n');
+    if (navigator.share) {
+      navigator.share({ title: 'SSCC scan', text }).catch(() => {});
+    } else {
+      this.copyText('Details', text);
+    }
+  };
+
+  exportLibraryDocCSV = (docId) => {
+    const doc = this.state.documents.find((d) => d.id === docId);
+    const docScans = this.state.scans.filter((s) => s.documentId === docId);
+    const rows = [['SSCC', 'Batch No', 'GTIN/EAN', 'Best Before', 'Quantity', 'Confidence', 'Edited', 'Scanned At']];
+    docScans.forEach((h) =>
+      rows.push([
+        h.sscc || '',
+        h.batchNo || '',
+        h.gtin || '',
+        h.bestBefore || '',
+        h.quantity || '',
+        h.confidence || '',
+        h.edited ? 'yes' : '',
+        new Date(h.timestamp).toISOString(),
+      ])
+    );
+    const csv = rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = doc ? doc.name.replace(/[^a-z0-9\-_ ]/gi, '').trim().replace(/\s+/g, '-') : 'document';
+    a.download = (safeName || 'document') + '-scans.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  openScanDetail = (entry) => {
+    this.setState({ scanDetail: entry });
+  };
+
+  closeScanDetail = () => {
+    this.setState({ scanDetail: null });
+  };
+
+  deleteScan = (id) => {
+    const scans = this.state.scans.filter((h) => h.id !== id);
+    this.persistScans(scans);
+    const scanDetail = this.state.scanDetail && this.state.scanDetail.id === id ? null : this.state.scanDetail;
+    this.setState({ scans, scanDetail });
+  };
+
+  openLibraryDoc = (id) => {
+    this.setState({ libraryDocId: id, renamingDoc: false });
+  };
+
+  closeLibraryDoc = () => {
+    this.setState({ libraryDocId: null, renamingDoc: false });
+  };
+
+  // --- Rename document ---
+  startRenameDoc = () => {
+    const doc = this.state.documents.find((d) => d.id === this.state.libraryDocId);
+    this.setState({ renamingDoc: true, renameValue: doc ? doc.name : '' });
+  };
+
+  cancelRenameDoc = () => {
+    this.setState({ renamingDoc: false });
+  };
+
+  setRenameValue = (e) => {
+    this.setState({ renameValue: e.target.value });
+  };
+
+  saveRenameDoc = () => {
+    const name = (this.state.renameValue || '').trim();
+    if (!name) {
+      this.flashToast('Name cannot be empty');
+      return;
+    }
+    const documents = this.state.documents.map((d) => (d.id === this.state.libraryDocId ? Object.assign({}, d, { name }) : d));
+    this.persistDocuments(documents);
+    this.setState({ documents, renamingDoc: false });
+    this.flashToast('Document renamed');
+  };
+
+  openDocPicker = () => {
+    this.setState({ docPickerOpen: true, newDocName: '' });
+  };
+
+  closeDocPicker = () => {
+    this.setState({ docPickerOpen: false });
+  };
+
+  stopPropagation = (e) => {
+    e.stopPropagation();
+  };
+
+  selectDocument = (id) => {
+    this.persistActiveDoc(id);
+    this.setState({ activeDocumentId: id, docPickerOpen: false });
+  };
+
+  setNewDocName = (e) => {
+    this.setState({ newDocName: e.target.value });
+  };
+
+  createDocument = () => {
+    const name = (this.state.newDocName || '').trim();
+    if (!name) return;
+    const doc = { id: 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), name, createdAt: Date.now() };
+    const documents = [doc, ...this.state.documents];
+    this.persistDocuments(documents);
+    this.persistActiveDoc(doc.id);
+    this.setState({ documents, activeDocumentId: doc.id, newDocName: '', docPickerOpen: false });
+    this.flashToast('Filing to ' + name);
+  };
+
+  armDeleteDoc = (id, e) => {
+    if (e) e.stopPropagation();
+    if (this.state.confirmDeleteDocId === id) {
+      this.deleteDocument(id);
+    } else {
+      this.setState({ confirmDeleteDocId: id });
+      clearTimeout(this._confirmTimer);
+      this._confirmTimer = setTimeout(() => {
+        this.setState((s) => (s.confirmDeleteDocId === id ? { confirmDeleteDocId: null } : null));
+      }, 2500);
+    }
+  };
+
+  deleteDocument = (id) => {
+    let documents = this.state.documents.filter((d) => d.id !== id);
+    let scans = this.state.scans.filter((s) => s.documentId !== id);
+    if (documents.length === 0) {
+      documents = [{ id: 'doc-' + Date.now(), name: 'General', createdAt: Date.now() }];
+    }
+    let activeDocumentId = this.state.activeDocumentId;
+    if (activeDocumentId === id) activeDocumentId = documents[0].id;
+    let libraryDocId = this.state.libraryDocId === id ? null : this.state.libraryDocId;
+    this.persistDocuments(documents);
+    this.persistScans(scans);
+    this.persistActiveDoc(activeDocumentId);
+    this.setState({ documents, scans, activeDocumentId, libraryDocId, confirmDeleteDocId: null });
+    this.flashToast('Document deleted');
+  };
+
+  // GS1 mod-10 check digit validation for an 18-digit SSCC
+  ssccCheckStatus = (sscc) => {
+    const clean = (sscc || '').replace(/\s+/g, '');
+    if (!/^\d{18}$/.test(clean)) return clean.length ? 'length' : 'empty';
+    let sum = 0;
+    for (let i = 0; i < 17; i++) {
+      const d = clean.charCodeAt(i) - 48;
+      sum += (i % 2 === 0 ? 3 : 1) * d;
+    }
+    const check = (10 - (sum % 10)) % 10;
+    return check === clean.charCodeAt(17) - 48 ? 'ok' : 'checkdigit';
+  };
+
+  formatGroup = (str) => {
+    if (!str) return '—';
+    const clean = String(str).replace(/\s+/g, '');
+    const m = clean.match(/.{1,4}/g);
+    return m ? m.join(' ') : clean;
+  };
+
+  formatRelative = (ts) => {
+    const diff = Date.now() - ts;
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return min + 'm ago';
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return hr + 'h ago';
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  confidenceColor = (c) => {
+    if (c === 'high') return '#5FBF83';
+    if (c === 'low') return '#E5484D';
+    return '#F2C94C';
+  };
+
+  withDisplay = (entry) => {
+    if (!entry) return null;
+    const doc = this.state.documents.find((d) => d.id === entry.documentId);
+    return Object.assign({}, entry, {
+      ssccDisplay: this.formatGroup(entry.sscc),
+      batchDisplay: entry.batchNo || '—',
+      gtinDisplay: entry.gtin || '—',
+      bestBeforeDisplay: entry.bestBefore || '—',
+      quantityDisplay: entry.quantity || '—',
+      relativeTime: entry.timestamp ? this.formatRelative(entry.timestamp) : '',
+      documentName: doc ? doc.name : 'Unfiled',
+    });
+  };
+
+  renderVals() {
+    const accent = this.props.accentColor || '#F2A93C';
+    const showConfidenceBadge = this.props.showConfidenceBadge !== false;
+    const {
+      activeTab,
+      flow,
+      currentScan,
+      documents,
+      activeDocumentId,
+      scans,
+      docPickerOpen,
+      newDocName,
+      libraryDocId,
+      confirmDeleteDocId,
+      scanDetail,
+      toast,
+      batchMode,
+      batchCount,
+      editingResult,
+      editVals,
+      renamingDoc,
+      renameValue,
+    } = this.state;
+
+    const displayScan = flow === 'result' && currentScan ? this.withDisplay(currentScan) : currentScan;
+
+    // Images are built as elements here (not template <img src="{{ }}">) so the
+    // standalone-bundle step never sees a literal template hole in a src attribute.
+    const mkImg = (src, style) => (src ? React.createElement('img', { src, loading: 'lazy', style }) : null);
+    const scanSrc = currentScan && currentScan.imageDataUrl;
+    const processingBgEl = mkImg(scanSrc, { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(.4) saturate(.7)' });
+    const resultImgEl = mkImg(scanSrc, { width: '100%', height: 110, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(237,237,233,.1)' });
+    const errorImgEl = mkImg(scanSrc, { width: '100%', height: 120, objectFit: 'cover', borderRadius: 10, opacity: 0.5, border: '1px solid rgba(237,237,233,.1)' });
+    const thumbStyle = { width: 48, height: 48, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(237,237,233,.12)', flexShrink: 0 };
+    const activeDoc = documents.find((d) => d.id === activeDocumentId);
+
+    const docsForPicker = documents.map((d) => {
+      const count = scans.filter((s) => s.documentId === d.id).length;
+      return {
+        id: d.id,
+        name: d.name,
+        isActive: d.id === activeDocumentId,
+        radioColor: d.id === activeDocumentId ? accent : 'rgba(237,237,233,.35)',
+        countLabel: count + (count === 1 ? ' scan' : ' scans'),
+        onSelect: () => this.selectDocument(d.id),
+      };
+    });
+
+    const documentRows = documents.map((d) => {
+      const docScans = scans.filter((s) => s.documentId === d.id);
+      const latest = docScans[0];
+      const isConfirm = confirmDeleteDocId === d.id;
+      return {
+        id: d.id,
+        name: d.name,
+        subtitle: docScans.length + (docScans.length === 1 ? ' scan' : ' scans') + (latest ? ' · ' + this.formatRelative(latest.timestamp) : ''),
+        thumbnail: latest ? latest.thumbnail : null,
+        thumbEl: mkImg(latest && latest.thumbnail, thumbStyle),
+        noThumbnail: !latest,
+        deleteLabel: isConfirm ? 'Sure?' : '✕',
+        deleteBg: isConfirm ? 'rgba(229,72,77,.16)' : 'transparent',
+        deleteColor: isConfirm ? '#F5A3A6' : 'rgba(237,237,233,.35)',
+        onOpen: () => this.openLibraryDoc(d.id),
+        onDelete: (e) => this.armDeleteDoc(d.id, e),
+      };
+    });
+
+    const libraryDoc = libraryDocId ? documents.find((d) => d.id === libraryDocId) : null;
+    const libraryDocScansRaw = libraryDocId ? scans.filter((s) => s.documentId === libraryDocId) : [];
+    const libraryDocScans = libraryDocScansRaw.map((h) => {
+      const d = this.withDisplay(h);
+      d.onOpen = () => this.openScanDetail(h);
+      d.onDelete = (e) => {
+        e.stopPropagation();
+        this.deleteScan(h.id);
+      };
+      d.noThumbnail = !d.thumbnail;
+      d.thumbEl = mkImg(d.thumbnail, thumbStyle);
+      return d;
+    });
+    const libraryDocDisplay = libraryDoc
+      ? { name: libraryDoc.name, countLabel: libraryDocScansRaw.length + (libraryDocScansRaw.length === 1 ? ' scan' : ' scans') }
+      : { name: '', countLabel: '' };
+
+    const ssccStatus = this.ssccCheckStatus(editVals.sscc);
+    const editSSCCInvalid = editingResult && ssccStatus !== 'ok' && ssccStatus !== 'empty';
+    const editSSCCHint =
+      ssccStatus === 'length'
+        ? 'SSCC should be exactly 18 digits.'
+        : ssccStatus === 'checkdigit'
+        ? "Check digit doesn't match — one digit may be wrong."
+        : '';
+
+    return {
+      accent,
+      isScanTab: activeTab === 'scan',
+      isLibraryTab: activeTab === 'library',
+      onTabScan: () => this.switchTab('scan'),
+      onTabLibrary: () => this.switchTab('library'),
+      scanTabColor: activeTab === 'scan' ? accent : 'rgba(237,237,233,.4)',
+      libraryTabColor: activeTab === 'library' ? accent : 'rgba(237,237,233,.4)',
+      hasHistoryBadge: scans.length > 0,
+      historyBadgeCount: scans.length > 99 ? '99+' : String(scans.length),
+
+      flowLive: flow === 'live',
+      flowProcessing: flow === 'processing',
+      flowResult: flow === 'result',
+      flowError: flow === 'error',
+      onFilePicked: this.handleFilePicked,
+      onOpenFilePicker: this.openFilePicker,
+      fileInputRef: this.fileInputRef,
+      onOpenCameraInput: this.openCameraInput,
+      cameraInputRef: this.cameraInputRef,
+
+      batchMode,
+      batchModeOff: !batchMode,
+      batchCount: String(batchCount),
+      batchToggleBg: batchMode ? accent : 'rgba(237,237,233,.18)',
+      batchKnobLeft: batchMode ? '16px' : '2px',
+      onToggleBatchMode: this.toggleBatchMode,
+      onNextScan: this.nextScan,
+
+      activeDocumentName: activeDoc ? activeDoc.name : '—',
+
+      currentScan: displayScan,
+      processingBgEl,
+      resultImgEl,
+      errorImgEl,
+      scanDetailImgEl: mkImg(scanDetail && scanDetail.thumbnail, { width: '100%', height: 130, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(237,237,233,.1)' }),
+      resultDotColor: showConfidenceBadge && currentScan ? this.confidenceColor(currentScan.confidence) : '#5FBF83',
+      showLowConfidenceNotice: showConfidenceBadge && !!currentScan && currentScan.confidence === 'low' && !editingResult,
+      onCopySSCC: () => this.copyText('SSCC', currentScan && currentScan.sscc),
+      onCopyBatch: () => this.copyText('Batch no.', currentScan && currentScan.batchNo),
+      onShareCurrent: () => this.shareEntry(currentScan),
+      onRetake: this.retake,
+
+      editingResult,
+      notEditingResult: !editingResult,
+      editVals,
+      onStartEdit: this.startEdit,
+      onCancelEdit: this.cancelEdit,
+      onSaveEdit: this.saveEdit,
+      onEditSSCC: (e) => this.setEditVal('sscc', e),
+      onEditBatch: (e) => this.setEditVal('batchNo', e),
+      onEditGtin: (e) => this.setEditVal('gtin', e),
+      onEditBestBefore: (e) => this.setEditVal('bestBefore', e),
+      onEditQuantity: (e) => this.setEditVal('quantity', e),
+      editSSCCInvalid,
+      editSSCCHint,
+      editSSCCBorder: editSSCCInvalid ? 'rgba(229,72,77,.5)' : 'rgba(237,237,233,.16)',
+
+      docPickerOpen,
+      documents: docsForPicker,
+      newDocName,
+      createDocDisabled: newDocName.trim().length === 0,
+      createDocOpacity: newDocName.trim().length === 0 ? 0.45 : 1,
+      onOpenDocPicker: this.openDocPicker,
+      onCloseDocPicker: this.closeDocPicker,
+      onStopPropagation: this.stopPropagation,
+      onNewDocNameChange: this.setNewDocName,
+      onCreateDocument: this.createDocument,
+
+      documentCountLabel: documents.length + (documents.length === 1 ? ' document' : ' documents'),
+      documentRows,
+      showDocList: !libraryDocId,
+      showDocDetail: !!libraryDocId,
+      libraryDoc: libraryDocDisplay,
+      libraryDocEmpty: libraryDocScansRaw.length === 0,
+      libraryDocNotEmpty: libraryDocScansRaw.length > 0,
+      libraryDocExportColor: libraryDocScansRaw.length === 0 ? 'rgba(237,237,233,.3)' : '#EDEDE9',
+      libraryDocScans,
+      onCloseLibraryDoc: this.closeLibraryDoc,
+      onExportLibraryDoc: () => this.exportLibraryDocCSV(libraryDocId),
+
+      renamingDoc,
+      notRenamingDoc: !renamingDoc,
+      renameValue,
+      onStartRenameDoc: this.startRenameDoc,
+      onCancelRenameDoc: this.cancelRenameDoc,
+      onSaveRenameDoc: this.saveRenameDoc,
+      onRenameChange: this.setRenameValue,
+
+      scanDetailOpen: !!scanDetail,
+      scanDetail: this.withDisplay(scanDetail),
+      hasScanDetailImage: !!(scanDetail && scanDetail.thumbnail),
+      onCloseScanDetail: this.closeScanDetail,
+      onCopyDetailSSCC: () => this.copyText('SSCC', scanDetail && scanDetail.sscc),
+      onCopyDetailBatch: () => this.copyText('Batch no.', scanDetail && scanDetail.batchNo),
+      onDeleteDetail: () => scanDetail && this.deleteScan(scanDetail.id),
+      onShareDetail: () => this.shareEntry(scanDetail),
+
+      showToast: !!toast,
+      toastMessage: toast,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
