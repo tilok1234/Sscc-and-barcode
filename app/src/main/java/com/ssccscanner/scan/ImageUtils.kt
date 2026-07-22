@@ -17,8 +17,12 @@ object ImageUtils {
     fun loadScaled(context: Context, uri: Uri, maxWidth: Int = 1400): Bitmap? {
         val resolver = context.contentResolver
 
+        // NB: decodeStream always returns null in inJustDecodeBounds mode — only
+        // the stream being null means the image couldn't be opened. Success is
+        // judged by the dimensions written into `bounds`.
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+        val boundsStream = resolver.openInputStream(uri) ?: return null
+        boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
         var sample = 1

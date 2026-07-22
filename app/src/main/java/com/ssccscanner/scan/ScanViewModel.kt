@@ -121,8 +121,10 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             val fields = StillImageProcessor.process(bitmap)
-            // Stills go through OCR, so keep the prototype's bar: SSCC or batch required.
-            if (fields == null || !fields.isUsable) {
+            // Accept when OCR found the label's key fields (SSCC or batch), or
+            // when any barcode on the photo decoded — same bar as live scanning.
+            val barcodeDecoded = fields != null && fields.source != com.ssccscanner.core.ScanSource.OCR && !fields.isEmpty
+            if (fields == null || (!fields.isUsable && !barcodeDecoded)) {
                 _state.update { it.copy(flow = ScanFlow.Error(errorMessage)) }
             } else {
                 finalizeScan(fields, bitmap)
