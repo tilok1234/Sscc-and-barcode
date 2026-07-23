@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -41,28 +41,41 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.ssccscanner.data.DamagePhotoEntity
+import com.ssccscanner.data.DamageReportEntity
 import com.ssccscanner.data.DamageReportWithScan
 import com.ssccscanner.scan.ImageUtils
 import com.ssccscanner.scan.ScanViewModel
 import com.ssccscanner.ui.AppIcons
+import com.ssccscanner.ui.FullscreenPhotoOverlay
 import com.ssccscanner.ui.LocalToast
+import com.ssccscanner.ui.NoteItem
+import com.ssccscanner.ui.NotesSection
+import com.ssccscanner.ui.PhotoItem
+import com.ssccscanner.ui.PhotosSection
+import com.ssccscanner.ui.SectionHeader
 import com.ssccscanner.ui.relativeTime
 import com.ssccscanner.ui.theme.PlexMono
 import com.ssccscanner.ui.theme.PlexSans
 import com.ssccscanner.ui.theme.Tokens
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun DamageScreen(viewModel: DamageViewModel) {
@@ -91,6 +104,16 @@ fun DamageScreen(viewModel: DamageViewModel) {
     }
 }
 
+// --- Status helpers ---
+
+private data class StatusLook(val icon: ImageVector, val tint: Color, val label: String)
+
+private fun statusLook(status: String): StatusLook = when (status) {
+    DamageReportEntity.STATUS_RESTORED -> StatusLook(AppIcons.Check, Tokens.Success, "Restored")
+    DamageReportEntity.STATUS_SANITIZED -> StatusLook(AppIcons.Close, Tokens.Danger, "Sanitized")
+    else -> StatusLook(AppIcons.Alert, Tokens.Warning, "Open")
+}
+
 // --- List ---
 
 @Composable
@@ -111,8 +134,9 @@ private fun DamageList(
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
                 )
+                val open = reports.count { it.report.status == DamageReportEntity.STATUS_OPEN }
                 Text(
-                    text = if (reports.size == 1) "1 report" else "${reports.size} reports",
+                    text = "${reports.size} total · $open open",
                     color = Tokens.ink(0.45f),
                     fontFamily = PlexMono,
                     fontSize = 12.sp,
@@ -142,13 +166,14 @@ private fun DamageList(
                         fontFamily = PlexSans,
                         fontSize = 11.5.sp,
                         lineHeight = 17.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
         } else {
             LazyColumn {
                 items(reports, key = { it.report.id }) { entry ->
+                    val look = statusLook(entry.report.status)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -177,9 +202,9 @@ private fun DamageList(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    imageVector = AppIcons.Alert,
+                                    imageVector = look.icon,
                                     contentDescription = null,
-                                    tint = Tokens.DangerText,
+                                    tint = look.tint,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -199,9 +224,9 @@ private fun DamageList(
                                 1 -> "1 photo"
                                 else -> "${entry.photos.size} photos"
                             }
-                            val commentPreview = entry.report.comment.ifBlank { null }?.let { " · $it" }.orEmpty()
+                            val lastNote = entry.notes.maxByOrNull { it.createdAt }?.text?.let { " · $it" }.orEmpty()
                             Text(
-                                text = "$photoLabel · ${relativeTime(entry.report.createdAt)}$commentPreview",
+                                text = "$photoLabel · ${relativeTime(entry.report.createdAt)}$lastNote",
                                 color = Tokens.ink(0.45f),
                                 fontFamily = PlexSans,
                                 fontSize = 11.sp,
@@ -210,9 +235,9 @@ private fun DamageList(
                             )
                         }
                         Icon(
-                            imageVector = AppIcons.Alert,
-                            contentDescription = null,
-                            tint = Tokens.Warning,
+                            imageVector = look.icon,
+                            contentDescription = look.label,
+                            tint = look.tint,
                             modifier = Modifier.size(16.dp),
                         )
                     }
@@ -234,10 +259,13 @@ private fun DamageDetail(
     val context = LocalContext.current
     val toast = LocalToast.current
     val reportId = entry.report.id
+    val look = statusLook(entry.report.status)
 
-    var comment by remember(reportId) { mutableStateOf(entry.report.comment) }
     var viewingPhoto by remember { mutableStateOf<DamagePhotoEntity?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
+    // Set when Restored/Sanitized was just pressed: opens the status-note composer.
+    var statusNoteKind by remember { mutableStateOf<String?>(null) }
+    var statusNoteDraft by remember { mutableStateOf("") }
 
     // Camera capture into a FileProvider cache uri, then persisted by the VM.
     var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
@@ -307,9 +335,9 @@ private fun DamageDetail(
                 )
             }
             Icon(
-                imageVector = AppIcons.Alert,
-                contentDescription = null,
-                tint = Tokens.Warning,
+                imageVector = look.icon,
+                contentDescription = look.label,
+                tint = look.tint,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -318,6 +346,175 @@ private fun DamageDetail(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
+            // Status chip + actions
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .background(look.tint.copy(alpha = 0.14f), RoundedCornerShape(100.dp))
+                            .border(1.dp, look.tint.copy(alpha = 0.4f), RoundedCornerShape(100.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Icon(
+                            imageVector = look.icon,
+                            contentDescription = null,
+                            tint = look.tint,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Text(
+                            text = look.label.uppercase(),
+                            color = look.tint,
+                            fontFamily = PlexMono,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            letterSpacing = 0.08.em,
+                        )
+                    }
+                    if (entry.report.status != DamageReportEntity.STATUS_OPEN) {
+                        Text(
+                            text = "Reopen",
+                            color = Tokens.ink(0.55f),
+                            fontFamily = PlexSans,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.5.sp,
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) {
+                                    viewModel.setStatus(reportId, DamageReportEntity.STATUS_OPEN)
+                                    toast.show("Report reopened")
+                                }
+                                .padding(4.dp),
+                        )
+                    }
+                }
+
+                if (entry.report.status == DamageReportEntity.STATUS_OPEN) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatusActionButton(
+                            text = "Report restored",
+                            tint = Tokens.Success,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            viewModel.setStatus(reportId, DamageReportEntity.STATUS_RESTORED)
+                            statusNoteKind = DamageReportEntity.STATUS_RESTORED
+                            statusNoteDraft = ""
+                        }
+                        StatusActionButton(
+                            text = "Report sanitized",
+                            tint = Tokens.Danger,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            viewModel.setStatus(reportId, DamageReportEntity.STATUS_SANITIZED)
+                            statusNoteKind = DamageReportEntity.STATUS_SANITIZED
+                            statusNoteDraft = ""
+                        }
+                    }
+                }
+
+                // Status-note composer, opened right after pressing a status button
+                val kind = statusNoteKind
+                if (kind != null) {
+                    val kindTint = if (kind == DamageReportEntity.STATUS_RESTORED) Tokens.Success else Tokens.Danger
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(kindTint.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                            .border(1.dp, kindTint.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SectionHeader(
+                            if (kind == DamageReportEntity.STATUS_RESTORED) {
+                                "Restoration note"
+                            } else {
+                                "Sanitation note"
+                            },
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Tokens.ink(0.06f), RoundedCornerShape(9.dp))
+                                .border(1.dp, Tokens.ink(0.16f), RoundedCornerShape(9.dp))
+                                .padding(10.dp),
+                        ) {
+                            if (statusNoteDraft.isEmpty()) {
+                                Text(
+                                    text = if (kind == DamageReportEntity.STATUS_RESTORED) {
+                                        "e.g. restacked and shrink-wrapped, took 40 min, sent to line 2…"
+                                    } else {
+                                        "e.g. 12 cans leaking, whole layer scrapped and disposed…"
+                                    },
+                                    color = Tokens.ink(0.35f),
+                                    fontFamily = PlexSans,
+                                    fontSize = 12.5.sp,
+                                )
+                            }
+                            BasicTextField(
+                                value = statusNoteDraft,
+                                onValueChange = { statusNoteDraft = it },
+                                textStyle = TextStyle(
+                                    color = Tokens.TextBright,
+                                    fontFamily = PlexSans,
+                                    fontSize = 12.5.sp,
+                                    lineHeight = 18.sp,
+                                ),
+                                cursorBrush = SolidColor(Tokens.Accent),
+                                modifier = Modifier.fillMaxWidth().height(64.dp),
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "Skip",
+                                color = Tokens.ink(0.5f),
+                                fontFamily = PlexSans,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                modifier = Modifier
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                    ) { statusNoteKind = null }
+                                    .padding(6.dp),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(Tokens.Accent, RoundedCornerShape(9.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                    ) {
+                                        if (statusNoteDraft.isNotBlank()) {
+                                            viewModel.addNote(reportId, statusNoteDraft.trim(), kind)
+                                        }
+                                        statusNoteKind = null
+                                        toast.show(
+                                            if (kind == DamageReportEntity.STATUS_RESTORED) {
+                                                "Marked as restored"
+                                            } else {
+                                                "Marked as sanitized"
+                                            },
+                                        )
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            ) {
+                                Text(
+                                    text = "Save note",
+                                    color = Tokens.OnAccent,
+                                    fontFamily = PlexSans,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Label summary
             Column(
                 modifier = Modifier
@@ -327,7 +524,7 @@ private fun DamageDetail(
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SectionLabel("Pallet label")
+                SectionHeader("Pallet label")
                 val labelBmp = remember(entry.scan.id) {
                     entry.scan.labelPhotoPath?.let { ImageUtils.decodeFileScaled(it, maxWidth = 800) }
                 }
@@ -354,71 +551,25 @@ private fun DamageDetail(
                 }
             }
 
-            // Comment
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SectionLabel("Comment")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Tokens.ink(0.06f), RoundedCornerShape(9.dp))
-                        .border(1.dp, Tokens.ink(0.16f), RoundedCornerShape(9.dp))
-                        .padding(12.dp),
-                ) {
-                    if (comment.isEmpty()) {
-                        Text(
-                            text = "e.g. 6 crushed crates on the north corner, leaking cans…",
-                            color = Tokens.ink(0.35f),
-                            fontFamily = PlexSans,
-                            fontSize = 13.sp,
-                        )
-                    }
-                    BasicTextField(
-                        value = comment,
-                        onValueChange = {
-                            comment = it
-                            viewModel.setComment(reportId, it)
-                        },
-                        textStyle = TextStyle(
-                            color = Tokens.TextBright,
-                            fontFamily = PlexSans,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                        ),
-                        cursorBrush = SolidColor(Tokens.Accent),
-                        modifier = Modifier.fillMaxWidth().height(76.dp),
-                    )
-                }
-            }
+            // Notes log
+            NotesSection(
+                notes = entry.notes.map { NoteItem(it.id, it.text, it.createdAt, it.kind) },
+                onAdd = { viewModel.addNote(reportId, it) },
+                onDelete = { viewModel.deleteNote(it.id) },
+            )
 
             // Photos
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("Photos of the damage")
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "Gallery",
-                        color = Tokens.Accent,
-                        fontFamily = PlexSans,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) {
-                                galleryLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                                )
-                            }
-                            .padding(6.dp),
+            PhotosSection(
+                photos = entry.photos.map { PhotoItem(it.id, it.filePath) },
+                onAddCamera = capturePhoto,
+                onAddGallery = {
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
-                }
-                PhotoGrid(
-                    photos = entry.photos,
-                    onAdd = capturePhoto,
-                    onOpen = { viewingPhoto = it },
-                )
-            }
+                },
+                onOpen = { item -> viewingPhoto = entry.photos.firstOrNull { it.id == item.id } },
+                title = "Photos of the damage",
+            )
         }
 
         // Footer
@@ -461,7 +612,7 @@ private fun DamageDetail(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                    ) { shareReport(context, entry, comment) }
+                    ) { shareReport(context, entry) }
                     .padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -479,156 +630,52 @@ private fun DamageDetail(
     // Full-screen photo viewer
     val photo = viewingPhoto
     if (photo != null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Tokens.Void.copy(alpha = 0.96f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { viewingPhoto = null },
-            contentAlignment = Alignment.Center,
-        ) {
-            val bmp = remember(photo.id) { ImageUtils.decodeFileScaled(photo.filePath, maxWidth = 1600) }
-            if (bmp != null) {
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Damage photo",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize().padding(vertical = 60.dp),
-                )
-            }
-            Row(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(Tokens.DangerBg, RoundedCornerShape(100.dp))
-                        .border(1.dp, Tokens.DangerBorder, RoundedCornerShape(100.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            viewModel.deletePhoto(photo)
-                            viewingPhoto = null
-                        }
-                        .padding(horizontal = 18.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        text = "Delete photo",
-                        color = Tokens.DangerText,
-                        fontFamily = PlexSans,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .background(Tokens.ink(0.1f), RoundedCornerShape(100.dp))
-                        .border(1.dp, Tokens.ink(0.2f), RoundedCornerShape(100.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { viewingPhoto = null }
-                        .padding(horizontal = 18.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        text = "Close",
-                        color = Tokens.TextPrimary,
-                        fontFamily = PlexSans,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                    )
-                }
-            }
+        val bmp = remember(photo.id) { ImageUtils.decodeFileScaled(photo.filePath, maxWidth = 1600) }
+        if (bmp != null) {
+            FullscreenPhotoOverlay(
+                bitmap = bmp,
+                onDismiss = { viewingPhoto = null },
+                onDelete = {
+                    viewModel.deletePhoto(photo)
+                    viewingPhoto = null
+                },
+            )
+        } else {
+            viewingPhoto = null
         }
     }
 }
 
 @Composable
-private fun PhotoGrid(
-    photos: List<DamagePhotoEntity>,
-    onAdd: () -> Unit,
-    onOpen: (DamagePhotoEntity) -> Unit,
-) {
-    val cells: List<DamagePhotoEntity?> = photos + listOf(null) // trailing null = "add" tile
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        cells.chunked(3).forEach { rowCells ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowCells.forEach { cell ->
-                    if (cell == null) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                                .background(Tokens.ink(0.06f), RoundedCornerShape(10.dp))
-                                .border(1.dp, Tokens.ink(0.18f), RoundedCornerShape(10.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onAdd,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(
-                                    imageVector = AppIcons.Plus,
-                                    contentDescription = "Take photo",
-                                    tint = Tokens.Accent,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Text(
-                                    text = "Photo",
-                                    color = Tokens.ink(0.6f),
-                                    fontFamily = PlexSans,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 10.5.sp,
-                                )
-                            }
-                        }
-                    } else {
-                        val bmp = remember(cell.id) { ImageUtils.decodeFileScaled(cell.filePath, maxWidth = 500) }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                                .background(Tokens.Panel, RoundedCornerShape(10.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                ) { onOpen(cell) },
-                        ) {
-                            if (bmp != null) {
-                                Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = "Damage photo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                        }
-                    }
-                }
-                // Pad short rows so cells keep equal width
-                repeat(3 - rowCells.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
+private fun StatusActionButton(text: String, tint: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier = modifier
+            .background(tint.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+            .border(1.dp, tint.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (tint == Tokens.Success) AppIcons.Check else AppIcons.Close,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            color = tint,
+            fontFamily = PlexSans,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.5.sp,
+        )
     }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text.uppercase(),
-        color = Tokens.ink(0.45f),
-        fontFamily = PlexSans,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.sp,
-        letterSpacing = 0.08.em,
-    )
 }
 
 @Composable
@@ -653,23 +700,33 @@ private fun MiniField(label: String, value: String?, modifier: Modifier = Modifi
     }
 }
 
-private fun shareReport(context: Context, entry: DamageReportWithScan, comment: String) {
+private fun shareReport(context: Context, entry: DamageReportWithScan) {
     val s = entry.scan
+    val dateFmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
     val summary = buildString {
-        appendLine("DAMAGE REPORT")
+        appendLine("DAMAGE REPORT — ${statusLook(entry.report.status).label.uppercase()}")
         appendLine("SSCC: ${s.sscc ?: "—"}")
         appendLine("Batch: ${s.batchNo ?: "—"}")
         appendLine("GTIN/EAN: ${s.gtin ?: "—"}")
         appendLine("Best before: ${s.bestBefore ?: "—"}")
-        if (comment.isNotBlank()) {
+        val notes = entry.notes.sortedBy { it.createdAt }
+        if (notes.isNotEmpty()) {
             appendLine()
-            appendLine("Comment: $comment")
+            appendLine("Notes:")
+            notes.forEach { n ->
+                val tag = when (n.kind) {
+                    "restored" -> " [RESTORED]"
+                    "sanitized" -> " [SANITIZED]"
+                    else -> ""
+                }
+                appendLine("- ${dateFmt.format(Date(n.createdAt))}$tag ${n.text}")
+            }
         }
-        append("Photos attached: ${entry.photos.size}")
+        append("Photos attached: ${entry.photos.size + (if (s.labelPhotoPath != null) 1 else 0)}")
     }
 
     // Attach the label photo first, then the damage photos.
-    val allPaths = listOfNotNull(entry.scan.labelPhotoPath) + entry.photos.map { it.filePath }
+    val allPaths = listOfNotNull(s.labelPhotoPath) + entry.photos.map { it.filePath }
     val photoUris = ArrayList(
         allPaths.mapNotNull { path ->
             val f = File(path)

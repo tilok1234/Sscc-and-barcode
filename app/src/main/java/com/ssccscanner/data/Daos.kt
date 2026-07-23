@@ -70,6 +70,34 @@ interface ScanDao {
     @Query("DELETE FROM scans WHERE id = :id")
     suspend fun delete(id: String)
 
+    // --- Notes & extra photos on scans ---
+
+    @Query("SELECT * FROM scan_notes WHERE scanId = :scanId ORDER BY createdAt ASC")
+    fun notesForScan(scanId: String): Flow<List<ScanNoteEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertNote(note: ScanNoteEntity)
+
+    @Query("DELETE FROM scan_notes WHERE id = :id")
+    suspend fun deleteNote(id: String)
+
+    @Query("SELECT * FROM scan_photos WHERE scanId = :scanId ORDER BY createdAt ASC")
+    fun photosForScan(scanId: String): Flow<List<ScanPhotoEntity>>
+
+    @Query("SELECT * FROM scan_photos WHERE scanId = :scanId")
+    suspend fun photosForScanOnce(scanId: String): List<ScanPhotoEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPhoto(photo: ScanPhotoEntity)
+
+    @Query("DELETE FROM scan_photos WHERE id = :id")
+    suspend fun deletePhoto(id: String)
+
+    @Query(
+        "SELECT sp.filePath FROM scan_photos sp INNER JOIN scans s ON sp.scanId = s.id WHERE s.documentId = :documentId",
+    )
+    suspend fun photoPathsForDocument(documentId: String): List<String>
+
     // --- Retention cleanup ---
 
     @Query("SELECT * FROM scans WHERE labelPhotoPath IS NOT NULL AND timestamp < :cutoff")

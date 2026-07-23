@@ -47,9 +47,23 @@ class BarcodeAnalyzer(
             imageProxy.close()
             return
         }
-        val input = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        val rotation = imageProxy.imageInfo.rotationDegrees
+        val input = InputImage.fromMediaImage(mediaImage, rotation)
+        // Upright frame dimensions (ML Kit reports boxes in rotated coordinates)
+        val frameW = if (rotation % 180 != 0) imageProxy.height else imageProxy.width
+        val frameH = if (rotation % 180 != 0) imageProxy.width else imageProxy.height
         scanner.process(input)
-            .addOnSuccessListener { barcodes ->
+            .addOnSuccessListener { all ->
+                // Aim gating: only accept symbols whose center falls in the
+                // middle of the frame (≈ the on-screen reticle). Lets the user
+                // pick one barcode out of several on a dense label wall.
+                val barcodes = all.filter { b ->
+                    val box = b.boundingBox ?: return@filter true
+                    val cx = box.exactCenterX()
+                    val cy = box.exactCenterY()
+                    cx >= frameW * 0.18f && cx <= frameW * 0.82f &&
+                        cy >= frameH * 0.25f && cy <= frameH * 0.75f
+                }
                 if (barcodes.isNotEmpty()) {
                     // Convert only frames that decoded something — this frame
                     // becomes the stored photo of the label. Must happen before

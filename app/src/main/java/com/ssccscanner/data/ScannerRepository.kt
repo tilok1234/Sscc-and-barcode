@@ -54,10 +54,11 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
     suspend fun renameDocument(id: String, name: String) = documentDao.rename(id, name.trim())
 
     suspend fun deleteDocument(id: String) {
-        // Cascade removes the scan rows; their label photo files need explicit cleanup.
+        // Cascade removes the rows; photo files need explicit cleanup.
         scanDao.scansForDocumentOnce(id).forEach { scan ->
             scan.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
         }
+        scanDao.photoPathsForDocument(id).forEach { runCatching { java.io.File(it).delete() } }
         documentDao.delete(id) // scans cascade
         val fallback = documentDao.oldest()
         context.prefs.edit { prefs ->
@@ -136,7 +137,43 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
 
     suspend fun deleteScan(id: String) {
         scanDao.byId(id)?.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
+        scanDao.photosForScanOnce(id).forEach { runCatching { java.io.File(it.filePath).delete() } }
         scanDao.delete(id)
+    }
+
+    // --- Notes & extra photos on regular scans ---
+
+    private fun scanPhotoDir(): java.io.File =
+        java.io.File(context.filesDir, "scan_photos").apply { mkdirs() }
+
+    fun scanNotes(scanId: String): Flow<List<ScanNoteEntity>> = scanDao.notesForScan(scanId)
+
+    suspend fun addScanNote(scanId: String, text: String) {
+        if (text.isBlank()) return
+        scanDao.upsertNote(
+            ScanNoteEntity(id = newId(), scanId = scanId, text = text.trim(), createdAt = System.currentTimeMillis()),
+        )
+    }
+
+    suspend fun deleteScanNote(id: String) = scanDao.deleteNote(id)
+
+    fun scanPhotos(scanId: String): Flow<List<ScanPhotoEntity>> = scanDao.photosForScan(scanId)
+
+    suspend fun addScanPhoto(scanId: String, jpegBytes: ByteArray): ScanPhotoEntity {
+        val photo = ScanPhotoEntity(
+            id = newId(),
+            scanId = scanId,
+            filePath = java.io.File(scanPhotoDir(), "${newId()}.jpg").absolutePath,
+            createdAt = System.currentTimeMillis(),
+        )
+        java.io.File(photo.filePath).writeBytes(jpegBytes)
+        scanDao.upsertPhoto(photo)
+        return photo
+    }
+
+    suspend fun deleteScanPhoto(photo: ScanPhotoEntity) {
+        scanDao.deletePhoto(photo.id)
+        runCatching { java.io.File(photo.filePath).delete() }
     }
 
     private suspend fun ensureActiveDocumentId(): String {
@@ -187,6 +224,23 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
 
     suspend fun setDamageComment(reportId: String, comment: String) =
         damageDao.setComment(reportId, comment.trim())
+
+    suspend fun addDamageNote(reportId: String, text: String, kind: String = "note") {
+        if (text.isBlank()) return
+        damageDao.insertNote(
+            DamageNoteEntity(
+                id = newId(),
+                reportId = reportId,
+                kind = kind,
+                text = text.trim(),
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    suspend fun deleteDamageNote(id: String) = damageDao.deleteNote(id)
+
+    suspend fun setDamageStatus(reportId: String, status: String) = damageDao.setStatus(reportId, status)
 
     /** Persist a photo of the damaged goods as a JPEG file + DB row. */
     suspend fun addDamagePhoto(reportId: String, jpegBytes: ByteArray): DamagePhotoEntity {

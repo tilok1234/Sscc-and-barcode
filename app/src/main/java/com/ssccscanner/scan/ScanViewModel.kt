@@ -46,6 +46,9 @@ data class ScanUiState(
     val batchMode: Boolean = false,
     val batchCount: Int = 0,
     val activeDocumentName: String = "…",
+    // One-shot toast text set when batch mode saves a scan without showing the
+    // result screen; the UI shows it and calls consumeBatchSavedMessage().
+    val batchSavedMessage: String? = null,
 )
 
 class ScanViewModel(app: Application) : AndroidViewModel(app) {
@@ -61,6 +64,11 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
     private var aggregate: ScanFields? = null
     private var aggregateStartedAt = 0L
     private var lastDecodedFrame: Bitmap? = null
+
+    // Re-trigger guard: the same pallet shouldn't fire again the moment the
+    // camera returns to Ready (matters most in batch mode).
+    private var lastSavedKey: String? = null
+    private var lastSavedAt = 0L
 
     private val errorMessage =
         "Couldn't find an SSCC or batch number on this label. Try getting closer and keeping the text in focus."
@@ -106,6 +114,13 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         val agg = aggregate ?: return
+        // Ignore an immediate rescan of the pallet just saved.
+        if (dedupeKey(agg) != null && dedupeKey(agg) == lastSavedKey &&
+            System.currentTimeMillis() - lastSavedAt < DEDUPE_WINDOW_MS
+        ) {
+            resetAggregation()
+            return
+        }
         val complete = agg.sscc != null && agg.gtin != null && agg.batchNo != null
         val windowElapsed =
             aggregateStartedAt != 0L && System.currentTimeMillis() - aggregateStartedAt > AGGREGATION_WINDOW_MS
@@ -140,12 +155,30 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
         val timestamp = System.currentTimeMillis()
         val thumbnail = sourceBitmap?.let { ImageUtils.thumbnailJpeg(it) }
         val labelPhoto = sourceBitmap?.let { ImageUtils.labelJpeg(it) }
-        // Show the result immediately; persistence completes in the background.
+        lastSavedKey = dedupeKey(fields)
+        lastSavedAt = timestamp
+
+        val batch = _state.value.batchMode
+        if (batch) {
+            // Batch mode: save silently and stay on the camera — zero taps
+            // between pallets. A toast confirms each save.
+            val count = _state.value.batchCount + 1
+            val idLabel = fields.sscc?.takeLast(6) ?: fields.gtin?.takeLast(6) ?: fields.batchNo ?: "scan"
+            _state.update {
+                it.copy(
+                    flow = ScanFlow.Ready,
+                    batchCount = count,
+                    batchSavedMessage = "Saved …$idLabel · #$count",
+                )
+            }
+            viewModelScope.launch { repository.addScan(fields, thumbnail, labelPhoto, timestamp) }
+            return
+        }
+
+        // Normal mode: show the result immediately; persistence completes in
+        // the background.
         _state.update {
-            it.copy(
-                flow = ScanFlow.Result(PendingScan(null, fields, thumbnail, labelPhoto, timestamp)),
-                batchCount = if (it.batchMode) it.batchCount + 1 else it.batchCount,
-            )
+            it.copy(flow = ScanFlow.Result(PendingScan(null, fields, thumbnail, labelPhoto, timestamp)))
         }
         viewModelScope.launch {
             val saved = repository.addScan(fields, thumbnail, labelPhoto, timestamp)
@@ -159,6 +192,13 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    fun consumeBatchSavedMessage() {
+        _state.update { it.copy(batchSavedMessage = null) }
+    }
+
+    private fun dedupeKey(fields: ScanFields): String? =
+        fields.sscc ?: fields.gtin ?: fields.batchNo
 
     /** Manual corrections from the result screen's edit mode. */
     fun saveEdits(fields: ScanFields) {
@@ -191,6 +231,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         const val AGGREGATION_WINDOW_MS = 1200L
+        const val DEDUPE_WINDOW_MS = 5000L
 
         fun decodeThumbnail(bytes: ByteArray?): Bitmap? =
             bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }

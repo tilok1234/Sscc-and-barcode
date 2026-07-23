@@ -61,6 +61,36 @@ class DocumentsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repository.updateScanFields(id, fields) }
     }
 
+    // --- Notes & photos on scans ---
+
+    fun scanNotes(scanId: String) = repository.scanNotes(scanId)
+
+    fun addScanNote(scanId: String, text: String) {
+        viewModelScope.launch { repository.addScanNote(scanId, text) }
+    }
+
+    fun deleteScanNote(id: String) {
+        viewModelScope.launch { repository.deleteScanNote(id) }
+    }
+
+    fun scanPhotos(scanId: String) = repository.scanPhotos(scanId)
+
+    fun addScanPhoto(scanId: String, uri: android.net.Uri, onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val jpeg = com.ssccscanner.scan.ImageUtils.evidenceJpeg(getApplication(), uri)
+            if (jpeg == null) {
+                onDone(false)
+            } else {
+                repository.addScanPhoto(scanId, jpeg)
+                onDone(true)
+            }
+        }
+    }
+
+    fun deleteScanPhoto(photo: com.ssccscanner.data.ScanPhotoEntity) {
+        viewModelScope.launch { repository.deleteScanPhoto(photo) }
+    }
+
     // --- Retention settings ---
 
     val compressAfterDays: StateFlow<Int> =

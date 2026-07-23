@@ -39,6 +39,9 @@ interface DamageDao {
     @Query("DELETE FROM damage_reports WHERE id = :id")
     suspend fun deleteReport(id: String)
 
+    @Query("UPDATE damage_reports SET status = :status WHERE id = :id")
+    suspend fun setStatus(id: String, status: String)
+
     @Query("SELECT * FROM damage_photos WHERE reportId = :reportId ORDER BY createdAt ASC")
     suspend fun photosFor(reportId: String): List<DamagePhotoEntity>
 
@@ -47,4 +50,10 @@ interface DamageDao {
 
     @Query("DELETE FROM damage_photos WHERE id = :id")
     suspend fun deletePhoto(id: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNote(note: DamageNoteEntity)
+
+    @Query("DELETE FROM damage_notes WHERE id = :id")
+    suspend fun deleteNote(id: String)
 }

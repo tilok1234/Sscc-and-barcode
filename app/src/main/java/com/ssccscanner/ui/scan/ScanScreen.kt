@@ -114,6 +114,14 @@ fun ScanScreen(
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
+    // Batch mode saves without leaving the camera — confirm each one via toast.
+    LaunchedEffect(state.batchSavedMessage) {
+        state.batchSavedMessage?.let {
+            toast.show(it)
+            viewModel.consumeBatchSavedMessage()
+        }
+    }
+
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         uri?.let(viewModel::processStillImage)
     }
@@ -362,10 +370,15 @@ private fun ReadyOverlay(
         }
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = if (scanMode == ScanMode.BARCODE) {
-                "Point the camera at the label's barcodes.\nThey're read automatically."
-            } else {
-                "Frame the whole label, then press the shutter.\nBarcodes and printed text are read together."
+            text = when {
+                scanMode == ScanMode.BARCODE && batchMode ->
+                    "Batch on — each pallet saves instantly.\nAim the frame at the barcode you want."
+                scanMode == ScanMode.BARCODE ->
+                    "Aim the frame at the barcode you want.\nOnly codes inside it are read."
+                batchMode ->
+                    "Batch on — each shutter press saves instantly.\nFrame the whole label first."
+                else ->
+                    "Frame the whole label, then press the shutter.\nBarcodes and printed text are read together."
             },
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,

@@ -46,6 +46,46 @@ data class ScanEntity(
     override fun hashCode(): Int = id.hashCode()
 }
 
+/** A timestamped free-text note on a regular scan (Library). */
+@Entity(
+    tableName = "scan_notes",
+    foreignKeys = [
+        ForeignKey(
+            entity = ScanEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["scanId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("scanId")],
+)
+data class ScanNoteEntity(
+    @PrimaryKey val id: String,
+    val scanId: String,
+    val text: String,
+    val createdAt: Long,
+)
+
+/** An extra photo attached to a regular scan (Library). */
+@Entity(
+    tableName = "scan_photos",
+    foreignKeys = [
+        ForeignKey(
+            entity = ScanEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["scanId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("scanId")],
+)
+data class ScanPhotoEntity(
+    @PrimaryKey val id: String,
+    val scanId: String,
+    val filePath: String,
+    val createdAt: Long,
+)
+
 /** Row shape for the Library list: document + aggregate scan info. */
 data class DocumentSummary(
     val id: String,

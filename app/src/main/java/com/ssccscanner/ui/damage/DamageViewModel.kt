@@ -48,8 +48,16 @@ class DamageViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setComment(reportId: String, comment: String) {
-        viewModelScope.launch { repository.setDamageComment(reportId, comment) }
+    fun addNote(reportId: String, text: String, kind: String = "note") {
+        viewModelScope.launch { repository.addDamageNote(reportId, text, kind) }
+    }
+
+    fun deleteNote(id: String) {
+        viewModelScope.launch { repository.deleteDamageNote(id) }
+    }
+
+    fun setStatus(reportId: String, status: String) {
+        viewModelScope.launch { repository.setDamageStatus(reportId, status) }
     }
 
     fun addPhoto(reportId: String, uri: Uri, onDone: (Boolean) -> Unit = {}) {

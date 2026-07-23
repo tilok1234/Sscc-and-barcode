@@ -84,6 +84,7 @@ fun LibraryScreen(
             val openScan = scans.firstOrNull { it.id == openScanId }
             if (openScan != null) {
                 ScanDetail(
+                    viewModel = viewModel,
                     scan = openScan,
                     documentName = openDoc.name,
                     onBack = { openScanId = null },
@@ -513,6 +514,7 @@ private fun DocumentDetail(
 
 @Composable
 private fun ScanDetail(
+    viewModel: DocumentsViewModel,
     scan: ScanEntity,
     documentName: String,
     onBack: () -> Unit,
@@ -522,6 +524,43 @@ private fun ScanDetail(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val toast = LocalToast.current
+
+    val notes by remember(scan.id) { viewModel.scanNotes(scan.id) }.collectAsState(initial = emptyList())
+    val photos by remember(scan.id) { viewModel.scanPhotos(scan.id) }.collectAsState(initial = emptyList())
+    var viewingPhoto by remember { mutableStateOf<com.ssccscanner.data.ScanPhotoEntity?>(null) }
+
+    var pendingCaptureUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val takePicture = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture(),
+    ) { ok ->
+        val uri = pendingCaptureUri
+        if (ok && uri != null) {
+            viewModel.addScanPhoto(scan.id, uri) { saved ->
+                if (!saved) toast.show("Couldn't save photo")
+            }
+        }
+        pendingCaptureUri = null
+    }
+    val capturePhoto = {
+        val dir = java.io.File(context.cacheDir, "captures").apply { mkdirs() }
+        val file = java.io.File(dir, "scan_${System.currentTimeMillis()}.jpg")
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+        pendingCaptureUri = uri
+        takePicture.launch(uri)
+    }
+    val galleryLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            viewModel.addScanPhoto(scan.id, it) { saved ->
+                if (!saved) toast.show("Couldn't add that image")
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(Tokens.Surface).statusBarsPadding()) {
         Row(
@@ -624,6 +663,25 @@ private fun ScanDetail(
                     fontSize = 13.sp,
                 )
             }
+
+            com.ssccscanner.ui.NotesSection(
+                notes = notes.map { com.ssccscanner.ui.NoteItem(it.id, it.text, it.createdAt) },
+                onAdd = { viewModel.addScanNote(scan.id, it) },
+                onDelete = { viewModel.deleteScanNote(it.id) },
+            )
+
+            com.ssccscanner.ui.PhotosSection(
+                photos = photos.map { com.ssccscanner.ui.PhotoItem(it.id, it.filePath) },
+                onAddCamera = capturePhoto,
+                onAddGallery = {
+                    galleryLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                        ),
+                    )
+                },
+                onOpen = { item -> viewingPhoto = photos.firstOrNull { it.id == item.id } },
+            )
         }
 
         Row(
@@ -683,6 +741,24 @@ private fun ScanDetail(
                     fontSize = 13.sp,
                 )
             }
+        }
+    }
+
+    // Full-screen viewer for the scan's extra photos (overlays the screen).
+    val vp = viewingPhoto
+    if (vp != null) {
+        val vpBmp = remember(vp.id) { com.ssccscanner.scan.ImageUtils.decodeFileScaled(vp.filePath, maxWidth = 1600) }
+        if (vpBmp != null) {
+            com.ssccscanner.ui.FullscreenPhotoOverlay(
+                bitmap = vpBmp,
+                onDismiss = { viewingPhoto = null },
+                onDelete = {
+                    viewModel.deleteScanPhoto(vp)
+                    viewingPhoto = null
+                },
+            )
+        } else {
+            viewingPhoto = null
         }
     }
 }

@@ -8,8 +8,12 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [DocumentEntity::class, ScanEntity::class, DamageReportEntity::class, DamagePhotoEntity::class],
-    version = 3,
+    entities = [
+        DocumentEntity::class, ScanEntity::class,
+        DamageReportEntity::class, DamagePhotoEntity::class, DamageNoteEntity::class,
+        ScanNoteEntity::class, ScanPhotoEntity::class,
+    ],
+    version = 4,
     exportSchema = false,
 )
 abstract class ScannerDatabase : RoomDatabase() {
@@ -54,9 +58,59 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v3 → v4: report status, multi-note logs (damage + scans), scan photos.
+         * Existing single comments migrate into damage_notes.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `damage_reports` ADD COLUMN `status` TEXT NOT NULL DEFAULT 'open'")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `damage_notes` (
+                        `id` TEXT NOT NULL, `reportId` TEXT NOT NULL,
+                        `kind` TEXT NOT NULL, `text` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`reportId`) REFERENCES `damage_reports`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_damage_notes_reportId` ON `damage_notes` (`reportId`)")
+                db.execSQL(
+                    """
+                    INSERT INTO damage_notes (id, reportId, kind, text, createdAt)
+                    SELECT id || '-legacy', id, 'note', comment, createdAt
+                    FROM damage_reports WHERE comment != ''
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `scan_notes` (
+                        `id` TEXT NOT NULL, `scanId` TEXT NOT NULL,
+                        `text` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`scanId`) REFERENCES `scans`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_scan_notes_scanId` ON `scan_notes` (`scanId`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `scan_photos` (
+                        `id` TEXT NOT NULL, `scanId` TEXT NOT NULL,
+                        `filePath` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`scanId`) REFERENCES `scans`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_scan_photos_scanId` ON `scan_photos` (`scanId`)")
+            }
+        }
+
         fun build(context: Context): ScannerDatabase =
             Room.databaseBuilder(context, ScannerDatabase::class.java, "sscc-scanner.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
     }
