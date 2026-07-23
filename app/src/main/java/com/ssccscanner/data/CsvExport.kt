@@ -13,7 +13,12 @@ import java.util.TimeZone
 object CsvExport {
 
     /** Build the document's CSV, write it to cache, and hand back a share intent. */
-    fun shareIntent(context: Context, documentName: String, scans: List<ScanEntity>): Intent {
+    fun shareIntent(
+        context: Context,
+        documentName: String,
+        scans: List<ScanEntity>,
+        damagedScanIds: Set<String> = emptySet(),
+    ): Intent {
         val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
@@ -29,6 +34,7 @@ object CsvExport {
                     source = s.source,
                     edited = s.edited,
                     scannedAtIso = iso.format(Date(s.timestamp)),
+                    damaged = s.id in damagedScanIds,
                 )
             },
         )

@@ -95,6 +95,7 @@ import java.util.concurrent.Executors
 @Composable
 fun ScanScreen(
     documentsViewModel: DocumentsViewModel,
+    onReportDamage: (String) -> Unit = {},
     viewModel: ScanViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -177,6 +178,7 @@ fun ScanScreen(
                 documentName = state.activeDocumentName,
                 onScanAgain = viewModel::scanAgain,
                 onSaveEdits = viewModel::saveEdits,
+                onReportDamage = onReportDamage,
             )
 
             is ScanFlow.Error -> ErrorView(message = flow.message, onRetry = viewModel::dismissError)
@@ -531,6 +533,7 @@ private fun ResultView(
     documentName: String,
     onScanAgain: () -> Unit,
     onSaveEdits: (ScanFields) -> Unit,
+    onReportDamage: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -705,6 +708,40 @@ private fun ResultView(
                     SmallField(label = "GTIN/EAN", value = fields.gtin, modifier = Modifier.weight(1f))
                     SmallField(label = "Best before", value = fields.bestBefore, modifier = Modifier.weight(1f))
                     SmallField(label = "Quantity", value = fields.quantity, modifier = Modifier.weight(1f))
+                }
+
+                // Damage flow: flags this pallet and jumps to its damage report
+                // where photos of the damaged goods and a comment can be added.
+                val scanId = scan.scanId
+                if (scanId != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Tokens.DangerBg, RoundedCornerShape(12.dp))
+                            .border(1.dp, Tokens.DangerBorder, RoundedCornerShape(12.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { onReportDamage(scanId) }
+                            .padding(vertical = 13.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Alert,
+                            contentDescription = null,
+                            tint = Tokens.DangerText,
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Spacer(modifier = Modifier.width(7.dp))
+                        Text(
+                            text = "Report damage on this pallet",
+                            color = Tokens.DangerText,
+                            fontFamily = PlexSans,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                        )
+                    }
                 }
             }
         }

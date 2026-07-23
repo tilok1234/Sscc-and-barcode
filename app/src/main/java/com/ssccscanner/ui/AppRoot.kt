@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,10 +36,10 @@ import com.ssccscanner.ui.scan.ScanScreen
 import com.ssccscanner.ui.theme.PlexSans
 import com.ssccscanner.ui.theme.Tokens
 
-enum class AppTab { Scan, Library }
+enum class AppTab { Scan, Library, Damage }
 
 /**
- * Single persistent app shell — two tabs, no routing, matching the handoff's
+ * Single persistent app shell — three tabs, no routing, matching the handoff's
  * state model.
  */
 @Composable
@@ -46,21 +47,37 @@ fun AppRoot() {
     var activeTab by rememberSaveable { mutableStateOf(AppTab.Scan) }
     val toast = remember { ToastController() }
     val documentsViewModel: DocumentsViewModel = viewModel()
+    val damageViewModel: com.ssccscanner.ui.damage.DamageViewModel = viewModel()
     val totalScans by documentsViewModel.totalScanCount.collectAsState()
+    val damageCount by damageViewModel.count.collectAsState()
+
+    // "Report damage" from the Scan/Library tabs jumps straight to the report.
+    val damageOpenRequest by damageViewModel.openRequest.collectAsState()
+    LaunchedEffect(damageOpenRequest) {
+        if (damageOpenRequest != null) activeTab = AppTab.Damage
+    }
 
     CompositionLocalProvider(LocalToast provides toast) {
         Box(modifier = Modifier.fillMaxSize().background(Tokens.Surface)) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     when (activeTab) {
-                        AppTab.Scan -> ScanScreen(documentsViewModel = documentsViewModel)
-                        AppTab.Library -> LibraryScreen(viewModel = documentsViewModel)
+                        AppTab.Scan -> ScanScreen(
+                            documentsViewModel = documentsViewModel,
+                            onReportDamage = damageViewModel::reportDamage,
+                        )
+                        AppTab.Library -> LibraryScreen(
+                            viewModel = documentsViewModel,
+                            onReportDamage = damageViewModel::reportDamage,
+                        )
+                        AppTab.Damage -> com.ssccscanner.ui.damage.DamageScreen(viewModel = damageViewModel)
                     }
                 }
                 BottomNav(
                     activeTab = activeTab,
                     onSelect = { activeTab = it },
                     libraryBadgeCount = totalScans,
+                    damageBadgeCount = damageCount,
                 )
             }
             ToastHost(toast)
@@ -73,6 +90,7 @@ fun BottomNav(
     activeTab: AppTab,
     onSelect: (AppTab) -> Unit,
     libraryBadgeCount: Int,
+    damageBadgeCount: Int = 0,
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(Tokens.Panel).navigationBarsPadding()) {
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Tokens.ink(0.12f)))
@@ -91,6 +109,14 @@ fun BottomNav(
                 modifier = Modifier.weight(1f),
                 badgeCount = libraryBadgeCount,
                 onClick = { onSelect(AppTab.Library) },
+            )
+            NavItem(
+                label = "Damage",
+                icon = AppIcons.Alert,
+                selected = activeTab == AppTab.Damage,
+                modifier = Modifier.weight(1f),
+                badgeCount = damageBadgeCount,
+                onClick = { onSelect(AppTab.Damage) },
             )
         }
     }

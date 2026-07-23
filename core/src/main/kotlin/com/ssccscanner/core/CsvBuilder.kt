@@ -16,10 +16,11 @@ object CsvBuilder {
         val source: String,
         val edited: Boolean,
         val scannedAtIso: String,
+        val damaged: Boolean = false,
     )
 
     private val HEADER = listOf(
-        "SSCC", "Batch No", "GTIN/EAN", "Best Before", "Quantity", "Confidence", "Source", "Edited", "Scanned At",
+        "SSCC", "Batch No", "GTIN/EAN", "Best Before", "Quantity", "Confidence", "Source", "Edited", "Damaged", "Scanned At",
     )
 
     fun build(rows: List<Row>): String = buildString {
@@ -35,6 +36,7 @@ object CsvBuilder {
                     r.confidence,
                     r.source,
                     if (r.edited) "yes" else "no",
+                    if (r.damaged) "yes" else "no",
                     r.scannedAtIso,
                 ).joinToString(",") { escape(it) },
             )

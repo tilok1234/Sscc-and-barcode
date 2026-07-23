@@ -132,6 +132,64 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         context.prefs.edit { it[batchModeKey] = on }
     }
 
+    // --- Damage log ---
+
+    private val damageDao = db.damageDao()
+
+    private fun photoDir(): java.io.File =
+        java.io.File(context.filesDir, "damage_photos").apply { mkdirs() }
+
+    val damageReports: Flow<List<DamageReportWithScan>> = damageDao.reportsWithScans()
+
+    val damageCount: Flow<Int> = damageDao.count()
+
+    val damagedScanIds: Flow<List<String>> = damageDao.damagedScanIds()
+
+    suspend fun damagedScanIdsOnce(): Set<String> = damageDao.damagedScanIdsOnce().toSet()
+
+    suspend fun damageReport(id: String): DamageReportWithScan? = damageDao.reportWithScan(id)
+
+    /** Creates a report for the scan if none exists yet; returns the report id. */
+    suspend fun ensureDamageReport(scanId: String): String {
+        damageDao.reportForScan(scanId)?.let { return it.id }
+        val report = DamageReportEntity(
+            id = newId(),
+            scanId = scanId,
+            comment = "",
+            createdAt = System.currentTimeMillis(),
+        )
+        damageDao.insertReport(report)
+        // IGNORE conflict strategy: if a concurrent insert won, read it back.
+        return damageDao.reportForScan(scanId)?.id ?: report.id
+    }
+
+    suspend fun setDamageComment(reportId: String, comment: String) =
+        damageDao.setComment(reportId, comment.trim())
+
+    /** Persist a photo of the damaged goods as a JPEG file + DB row. */
+    suspend fun addDamagePhoto(reportId: String, jpegBytes: ByteArray): DamagePhotoEntity {
+        val photo = DamagePhotoEntity(
+            id = newId(),
+            reportId = reportId,
+            filePath = java.io.File(photoDir(), "${newId()}.jpg").absolutePath,
+            createdAt = System.currentTimeMillis(),
+        )
+        java.io.File(photo.filePath).writeBytes(jpegBytes)
+        damageDao.insertPhoto(photo)
+        return photo
+    }
+
+    suspend fun deleteDamagePhoto(photo: DamagePhotoEntity) {
+        damageDao.deletePhoto(photo.id)
+        runCatching { java.io.File(photo.filePath).delete() }
+    }
+
+    suspend fun deleteDamageReport(reportId: String) {
+        val photos = damageDao.photosFor(reportId)
+        damageDao.deleteReport(reportId) // photo rows cascade
+        photos.forEach { runCatching { java.io.File(it.filePath).delete() } }
+    }
+
     // --- Scan mode (barcode = live auto-scan, label = shutter-driven full-label read) ---
 
     private val scanModeKey = stringPreferencesKey("scan_mode")

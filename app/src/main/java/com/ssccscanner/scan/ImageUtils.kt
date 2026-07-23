@@ -48,6 +48,24 @@ object ImageUtils {
         }
     }
 
+    /** Full-quality-ish JPEG for damage evidence photos (~1600px, q80). */
+    fun evidenceJpeg(context: Context, uri: Uri): ByteArray? {
+        val bitmap = loadScaled(context, uri, maxWidth = 1600) ?: return null
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+        return out.toByteArray()
+    }
+
+    /** Decode a stored JPEG file scaled down for grid/preview display. */
+    fun decodeFileScaled(path: String, maxWidth: Int = 800): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while ((maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2)) >= maxWidth) sample *= 2
+        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
     /**
      * Small JPEG thumbnail under [byteBudget] — the only image ever persisted,
      * mirroring the prototype's ~15KB budget.

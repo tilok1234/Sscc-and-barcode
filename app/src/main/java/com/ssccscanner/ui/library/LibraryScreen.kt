@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -61,7 +62,10 @@ import com.ssccscanner.ui.theme.Tokens
 import kotlinx.coroutines.delay
 
 @Composable
-fun LibraryScreen(viewModel: DocumentsViewModel) {
+fun LibraryScreen(
+    viewModel: DocumentsViewModel,
+    onReportDamage: (String) -> Unit = {},
+) {
     var openDocId by rememberSaveable { mutableStateOf<String?>(null) }
     var openScanId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -87,6 +91,7 @@ fun LibraryScreen(viewModel: DocumentsViewModel) {
                         viewModel.deleteScan(openScan.id)
                         openScanId = null
                     },
+                    onReportDamage = onReportDamage,
                 )
             } else {
                 DocumentDetail(
@@ -495,6 +500,7 @@ private fun ScanDetail(
     documentName: String,
     onBack: () -> Unit,
     onDelete: () -> Unit,
+    onReportDamage: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -556,6 +562,35 @@ private fun ScanDetail(
                 MiniField("GTIN/EAN", scan.gtin, Modifier.weight(1f))
                 MiniField("Best before", scan.bestBefore, Modifier.weight(1f))
                 MiniField("Quantity", scan.quantity, Modifier.weight(1f))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Tokens.DangerBg, RoundedCornerShape(12.dp))
+                    .border(1.dp, Tokens.DangerBorder, RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onReportDamage(scan.id) }
+                    .padding(vertical = 13.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Alert,
+                    contentDescription = null,
+                    tint = Tokens.DangerText,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(modifier = Modifier.width(7.dp))
+                Text(
+                    text = "Report damage on this pallet",
+                    color = Tokens.DangerText,
+                    fontFamily = PlexSans,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                )
             }
         }
 

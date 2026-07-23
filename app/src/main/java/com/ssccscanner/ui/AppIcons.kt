@@ -159,6 +159,30 @@ object AppIcons {
         }
     }
 
+    val Alert: ImageVector by lazy {
+        strokeIcon("Alert") {
+            // triangle
+            moveTo(12.0f, 4.0f)
+            lineTo(21.0f, 20.0f)
+            lineTo(3.0f, 20.0f)
+            close()
+            // exclamation
+            moveTo(12.0f, 10.5f)
+            lineTo(12.0f, 14.5f)
+            moveTo(12.0f, 17.0f)
+            lineTo(12.0f, 17.1f)
+        }
+    }
+
+    val Plus: ImageVector by lazy {
+        strokeIcon("Plus") {
+            moveTo(12.0f, 5.5f)
+            lineTo(12.0f, 18.5f)
+            moveTo(5.5f, 12.0f)
+            lineTo(18.5f, 12.0f)
+        }
+    }
+
     val Copy: ImageVector by lazy {
         strokeIcon("Copy") {
             moveTo(9.0f, 9.0f)

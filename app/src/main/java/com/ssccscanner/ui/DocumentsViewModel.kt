@@ -66,7 +66,8 @@ class DocumentsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val scans = repository.scansForDocumentOnce(document.id)
             if (scans.isEmpty()) return@launch
-            val intent = CsvExport.shareIntent(context, document.name, scans)
+            val damagedIds = repository.damagedScanIdsOnce()
+            val intent = CsvExport.shareIntent(context, document.name, scans, damagedIds)
             context.startActivity(Intent.createChooser(intent, "Export CSV"))
         }
     }
