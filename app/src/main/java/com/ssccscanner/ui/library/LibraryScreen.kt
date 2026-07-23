@@ -258,15 +258,19 @@ private fun DocumentRow(
     ) {
         Thumb(doc.lastThumbnail, size = 48.dp)
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = doc.name,
-                color = Tokens.TextPrimary,
-                fontFamily = PlexSans,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = doc.name,
+                    color = Tokens.TextPrimary,
+                    fontFamily = PlexSans,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (doc.isBatch) BatchChip()
+            }
             val scansLabel = if (doc.scanCount == 1) "1 scan" else "${doc.scanCount} scans"
             val timeLabel = doc.lastScanAt?.let { " · ${relativeTime(it)}" }.orEmpty()
             Text(
@@ -383,20 +387,49 @@ private fun DocumentDetail(
                 )
             } else {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = document.name,
-                        color = Tokens.TextPrimary,
-                        fontFamily = PlexSans,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = document.name,
+                            color = Tokens.TextPrimary,
+                            fontFamily = PlexSans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (document.isBatch) BatchChip()
+                    }
                     Text(
                         text = if (document.scanCount == 1) "1 scan" else "${document.scanCount} scans",
                         color = Tokens.ink(0.45f),
                         fontFamily = PlexMono,
                         fontSize = 11.sp,
+                    )
+                }
+                if (!document.isBatch) {
+                    // Opt-in batch summary for normal documents
+                    Text(
+                        text = "Σ",
+                        color = if (document.showSummary) Tokens.OnAccent else Tokens.ink(0.6f),
+                        fontFamily = PlexMono,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .background(
+                                if (document.showSummary) Tokens.Accent else Tokens.ink(0.06f),
+                                RoundedCornerShape(100.dp),
+                            )
+                            .border(
+                                1.dp,
+                                if (document.showSummary) Tokens.Accent else Tokens.ink(0.16f),
+                                RoundedCornerShape(100.dp),
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { viewModel.setDocumentSummary(document.id, !document.showSummary) }
+                            .padding(horizontal = 9.dp, vertical = 4.dp),
                     )
                 }
                 Icon(
@@ -436,6 +469,11 @@ private fun DocumentDetail(
                     )
                 }
             }
+        }
+
+        if ((document.isBatch || document.showSummary) && scans.isNotEmpty()) {
+            BatchSummaryCard(scans)
+            Spacer(modifier = Modifier.size(10.dp))
         }
 
         if (scans.isEmpty()) {
@@ -632,7 +670,15 @@ private fun ScanDetail(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MiniField("GTIN/EAN", scan.gtin, Modifier.weight(1f))
                 MiniField("Best before", scan.bestBefore, Modifier.weight(1f))
-                MiniField("Quantity", scan.quantity, Modifier.weight(1f))
+                // The as-scanned count stays visible after any quantity edit.
+                MiniField(
+                    "Quantity",
+                    scan.quantity?.let { q ->
+                        val orig = scan.originalQuantity
+                        if (orig != null && orig != q) "$q (was $orig)" else q
+                    } ?: scan.originalQuantity?.let { "— (was $it)" },
+                    Modifier.weight(1f),
+                )
             }
 
             Row(
@@ -668,6 +714,7 @@ private fun ScanDetail(
                 notes = notes.map { com.ssccscanner.ui.NoteItem(it.id, it.text, it.createdAt) },
                 onAdd = { viewModel.addScanNote(scan.id, it) },
                 onDelete = { viewModel.deleteScanNote(it.id) },
+                onEdit = { note, text -> viewModel.editScanNote(note.id, text) },
             )
 
             com.ssccscanner.ui.PhotosSection(
@@ -760,6 +807,136 @@ private fun ScanDetail(
         } else {
             viewingPhoto = null
         }
+    }
+}
+
+// --- Batch summary ---
+
+/**
+ * Per-batch overview of a document's pallets with discrepancy detection:
+ * mixed best-before dates inside one batch, expired dates, missing batch
+ * numbers. Always on for batch documents, opt-in for normal ones.
+ */
+@Composable
+private fun BatchSummaryCard(scans: List<ScanEntity>) {
+    val summary = remember(scans) {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Date())
+        com.ssccscanner.core.BatchAnalyzer.analyze(
+            scans.map {
+                com.ssccscanner.core.BatchAnalyzer.ScanInfo(
+                    batchNo = it.batchNo,
+                    bestBefore = it.bestBefore,
+                    quantity = it.quantity,
+                )
+            },
+            todayIso = today,
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .background(Tokens.Panel, RoundedCornerShape(10.dp))
+            .border(1.dp, Tokens.ink(0.12f), RoundedCornerShape(10.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "BATCH SUMMARY",
+                color = Tokens.ink(0.45f),
+                fontFamily = PlexSans,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 10.sp,
+                letterSpacing = 0.08.em,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "${summary.batchCount} batches · ${scans.size} pallets",
+                color = Tokens.ink(0.5f),
+                fontFamily = PlexMono,
+                fontSize = 10.5.sp,
+            )
+        }
+
+        summary.discrepancies.forEach { d ->
+            val (bg, borderC, textC) = if (d.severity == com.ssccscanner.core.BatchAnalyzer.Severity.ERROR) {
+                Triple(Tokens.DangerBg, Tokens.DangerBorder, Tokens.DangerText)
+            } else {
+                Triple(Tokens.Warning.copy(alpha = 0.1f), Tokens.Warning.copy(alpha = 0.35f), Tokens.Warning)
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(bg, RoundedCornerShape(8.dp))
+                    .border(1.dp, borderC, RoundedCornerShape(8.dp))
+                    .padding(8.dp),
+            ) {
+                Text(
+                    text = d.message,
+                    color = textC,
+                    fontFamily = PlexSans,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                )
+            }
+        }
+
+        summary.groups.forEach { g ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = g.batchNo?.let { "Batch $it" } ?: "No batch no.",
+                    color = if (g.batchNo != null) Tokens.TextBright else Tokens.ink(0.5f),
+                    fontFamily = PlexMono,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = buildString {
+                        append(if (g.palletCount == 1) "1 pallet" else "${g.palletCount} pallets")
+                        g.totalQuantity?.let { append(" · $it units") }
+                    },
+                    color = Tokens.ink(0.6f),
+                    fontFamily = PlexSans,
+                    fontSize = 11.sp,
+                )
+                Text(
+                    text = when (g.bestBefores.size) {
+                        0 -> "BB —"
+                        1 -> "BB ${g.bestBefores.first()}"
+                        else -> "BB ×${g.bestBefores.size}!"
+                    },
+                    color = if (g.bestBefores.size > 1) Tokens.Danger else Tokens.ink(0.6f),
+                    fontFamily = PlexMono,
+                    fontSize = 10.5.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatchChip() {
+    Box(
+        modifier = Modifier
+            .background(Tokens.Accent.copy(alpha = 0.15f), RoundedCornerShape(100.dp))
+            .border(1.dp, Tokens.Accent.copy(alpha = 0.45f), RoundedCornerShape(100.dp))
+            .padding(horizontal = 6.dp, vertical = 1.dp),
+    ) {
+        Text(
+            text = "BATCH",
+            color = Tokens.Accent,
+            fontFamily = PlexMono,
+            fontWeight = FontWeight.Bold,
+            fontSize = 8.5.sp,
+            letterSpacing = 0.06.em,
+        )
     }
 }
 

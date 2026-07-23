@@ -56,6 +56,15 @@ class DamageViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repository.deleteDamageNote(id) }
     }
 
+    fun editNote(id: String, text: String) {
+        viewModelScope.launch { repository.updateDamageNote(id, text) }
+    }
+
+    /** Corrected quantity after restoration (marks the scan as edited). */
+    fun updateQuantity(scanId: String, quantity: String?) {
+        viewModelScope.launch { repository.updateScanQuantity(scanId, quantity) }
+    }
+
     fun setStatus(reportId: String, status: String) {
         viewModelScope.launch { repository.setDamageStatus(reportId, status) }
     }

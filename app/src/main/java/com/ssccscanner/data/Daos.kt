@@ -11,7 +11,7 @@ interface DocumentDao {
 
     @Query(
         """
-        SELECT d.id, d.name, d.createdAt,
+        SELECT d.id, d.name, d.createdAt, d.isBatch, d.showSummary,
                COUNT(s.id) AS scanCount,
                MAX(s.timestamp) AS lastScanAt,
                (SELECT s2.thumbnail FROM scans s2
@@ -39,6 +39,9 @@ interface DocumentDao {
 
     @Query("UPDATE documents SET name = :name WHERE id = :id")
     suspend fun rename(id: String, name: String)
+
+    @Query("UPDATE documents SET showSummary = :on WHERE id = :id")
+    suspend fun setShowSummary(id: String, on: Boolean)
 
     @Query("DELETE FROM documents WHERE id = :id")
     suspend fun delete(id: String)
@@ -80,6 +83,9 @@ interface ScanDao {
 
     @Query("DELETE FROM scan_notes WHERE id = :id")
     suspend fun deleteNote(id: String)
+
+    @Query("UPDATE scan_notes SET text = :text WHERE id = :id")
+    suspend fun updateNoteText(id: String, text: String)
 
     @Query("SELECT * FROM scan_photos WHERE scanId = :scanId ORDER BY createdAt ASC")
     fun photosForScan(scanId: String): Flow<List<ScanPhotoEntity>>

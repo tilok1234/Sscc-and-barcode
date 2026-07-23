@@ -149,6 +149,7 @@ fun ScanScreen(
     }
 
     var pickerOpen by remember { mutableStateOf(false) }
+    var batchPromptOpen by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().background(Tokens.CameraSurface)) {
         when (val flow = state.flow) {
@@ -165,7 +166,10 @@ fun ScanScreen(
                         batchCount = state.batchCount,
                         documentName = state.activeDocumentName,
                         onSetMode = viewModel::setScanMode,
-                        onToggleBatch = viewModel::setBatchMode,
+                        // Turning batch ON first asks for a batch document name.
+                        onToggleBatch = { on ->
+                            if (on) batchPromptOpen = true else viewModel.setBatchMode(false)
+                        },
                         onUpload = pickImage,
                         onCapture = capturePhoto,
                         onOpenPicker = { pickerOpen = true },
@@ -192,6 +196,24 @@ fun ScanScreen(
             is ScanFlow.Error -> ErrorView(message = flow.message, onRetry = viewModel::dismissError)
         }
 
+        if (batchPromptOpen) {
+            BatchStartPrompt(
+                currentDocumentName = state.activeDocumentName,
+                onCreate = { name ->
+                    documentsViewModel.createDocument(name, isBatch = true)
+                    viewModel.setBatchMode(true)
+                    toast.show("Batch started — filing to $name")
+                    batchPromptOpen = false
+                },
+                onUseCurrent = {
+                    viewModel.setBatchMode(true)
+                    toast.show("Batch on — filing to ${state.activeDocumentName}")
+                    batchPromptOpen = false
+                },
+                onDismiss = { batchPromptOpen = false },
+            )
+        }
+
         if (pickerOpen) {
             val documents by documentsViewModel.documents.collectAsState()
             val activeId by documentsViewModel.activeDocumentId.collectAsState()
@@ -210,6 +232,129 @@ fun ScanScreen(
                 },
                 onDismiss = { pickerOpen = false },
             )
+        }
+    }
+}
+
+/**
+ * Shown when batch mode is switched on: name a fresh batch document (a
+ * truckload usually deserves its own doc) or keep filing to the current one.
+ */
+@Composable
+private fun BatchStartPrompt(
+    currentDocumentName: String,
+    onCreate: (String) -> Unit,
+    onUseCurrent: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Tokens.Void.copy(alpha = 0.6f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(top = 88.dp)
+                .fillMaxWidth(0.88f)
+                .align(Alignment.TopCenter)
+                .background(Tokens.Panel, RoundedCornerShape(16.dp))
+                .border(1.dp, Tokens.ink(0.14f), RoundedCornerShape(16.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Start a batch",
+                color = Tokens.TextPrimary,
+                fontFamily = PlexSans,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+            )
+            Text(
+                text = "Scans will save instantly, back to back, and the document gets a per-batch summary with discrepancy checks.",
+                color = Tokens.ink(0.55f),
+                fontFamily = PlexSans,
+                fontSize = 11.5.sp,
+                lineHeight = 16.sp,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Tokens.ink(0.06f), RoundedCornerShape(9.dp))
+                    .border(1.dp, Tokens.ink(0.16f), RoundedCornerShape(9.dp))
+                    .padding(horizontal = 12.dp, vertical = 11.dp),
+            ) {
+                if (name.isEmpty()) {
+                    Text(
+                        text = "e.g. Truck 12 — Tuesday",
+                        color = Tokens.ink(0.35f),
+                        fontFamily = PlexSans,
+                        fontSize = 13.sp,
+                    )
+                }
+                BasicTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    textStyle = TextStyle(color = Tokens.TextBright, fontFamily = PlexSans, fontSize = 13.sp),
+                    cursorBrush = SolidColor(Tokens.Accent),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            val canCreate = name.isNotBlank()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Tokens.Accent.copy(alpha = if (canCreate) 1f else 0.45f), RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = canCreate,
+                    ) { onCreate(name.trim()) }
+                    .padding(vertical = 13.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "Create batch document",
+                    color = Tokens.OnAccent,
+                    fontFamily = PlexSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Tokens.ink(0.08f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Tokens.ink(0.18f), RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onUseCurrent,
+                    )
+                    .padding(vertical = 13.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "Keep filing to $currentDocumentName",
+                    color = Tokens.TextPrimary,
+                    fontFamily = PlexSans,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

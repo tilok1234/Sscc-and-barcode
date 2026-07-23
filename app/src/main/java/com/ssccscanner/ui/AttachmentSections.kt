@@ -58,9 +58,12 @@ fun NotesSection(
     notes: List<NoteItem>,
     onAdd: (String) -> Unit,
     onDelete: (NoteItem) -> Unit,
+    onEdit: (NoteItem, String) -> Unit,
     title: String = "Notes",
 ) {
     var draft by remember { mutableStateOf("") }
+    var editingId by remember { mutableStateOf<String?>(null) }
+    var editDraft by remember { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(title)
@@ -71,15 +74,17 @@ fun NotesSection(
                 "sanitized" -> "Sanitized · ${relativeTime(note.createdAt)}" to Tokens.Danger
                 else -> relativeTime(note.createdAt) to Tokens.ink(0.4f)
             }
+            val isEditing = editingId == note.id
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Tokens.ink(0.05f), RoundedCornerShape(9.dp))
                     .border(
                         1.dp,
-                        when (note.kind) {
-                            "restored" -> Tokens.Success.copy(alpha = 0.35f)
-                            "sanitized" -> Tokens.DangerBorder
+                        when {
+                            isEditing -> Tokens.Accent.copy(alpha = 0.5f)
+                            note.kind == "restored" -> Tokens.Success.copy(alpha = 0.35f)
+                            note.kind == "sanitized" -> Tokens.DangerBorder
                             else -> Tokens.ink(0.12f)
                         },
                         RoundedCornerShape(9.dp),
@@ -110,13 +115,70 @@ fun NotesSection(
                             .padding(horizontal = 4.dp),
                     )
                 }
-                Text(
-                    text = note.text,
-                    color = Tokens.TextBright,
-                    fontFamily = PlexSans,
-                    fontSize = 12.5.sp,
-                    lineHeight = 18.sp,
-                )
+                if (isEditing) {
+                    BasicTextField(
+                        value = editDraft,
+                        onValueChange = { editDraft = it },
+                        textStyle = TextStyle(
+                            color = Tokens.TextBright,
+                            fontFamily = PlexSans,
+                            fontSize = 12.5.sp,
+                            lineHeight = 18.sp,
+                        ),
+                        cursorBrush = SolidColor(Tokens.Accent),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "Cancel",
+                            color = Tokens.ink(0.5f),
+                            fontFamily = PlexSans,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.5.sp,
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) { editingId = null }
+                                .padding(4.dp),
+                        )
+                        Text(
+                            text = "Save",
+                            color = Tokens.Accent,
+                            fontFamily = PlexSans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) {
+                                    if (editDraft.isNotBlank()) onEdit(note, editDraft.trim())
+                                    editingId = null
+                                }
+                                .padding(4.dp),
+                        )
+                    }
+                } else {
+                    // Tap a note to edit it in place.
+                    Text(
+                        text = note.text,
+                        color = Tokens.TextBright,
+                        fontFamily = PlexSans,
+                        fontSize = 12.5.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                editingId = note.id
+                                editDraft = note.text
+                            },
+                    )
+                }
             }
         }
 

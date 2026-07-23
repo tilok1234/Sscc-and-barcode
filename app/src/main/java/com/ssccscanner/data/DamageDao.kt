@@ -56,4 +56,7 @@ interface DamageDao {
 
     @Query("DELETE FROM damage_notes WHERE id = :id")
     suspend fun deleteNote(id: String)
+
+    @Query("UPDATE damage_notes SET text = :text WHERE id = :id")
+    suspend fun updateNoteText(id: String, text: String)
 }

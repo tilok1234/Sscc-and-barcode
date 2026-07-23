@@ -44,14 +44,21 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         return doc
     }
 
-    suspend fun createDocument(name: String): DocumentEntity {
-        val doc = DocumentEntity(id = newId(), name = name.trim(), createdAt = System.currentTimeMillis())
+    suspend fun createDocument(name: String, isBatch: Boolean = false): DocumentEntity {
+        val doc = DocumentEntity(
+            id = newId(),
+            name = name.trim(),
+            createdAt = System.currentTimeMillis(),
+            isBatch = isBatch,
+        )
         documentDao.upsert(doc)
         setActiveDocument(doc.id)
         return doc
     }
 
     suspend fun renameDocument(id: String, name: String) = documentDao.rename(id, name.trim())
+
+    suspend fun setDocumentSummary(id: String, on: Boolean) = documentDao.setShowSummary(id, on)
 
     suspend fun deleteDocument(id: String) {
         // Cascade removes the rows; photo files need explicit cleanup.
@@ -131,6 +138,9 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
                 bestBefore = fields.bestBefore,
                 quantity = fields.quantity,
                 edited = true,
+                // Preserve the as-scanned count the first time it changes.
+                originalQuantity = existing.originalQuantity
+                    ?: existing.quantity.takeIf { it != fields.quantity },
             ),
         )
     }
@@ -156,6 +166,11 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
     }
 
     suspend fun deleteScanNote(id: String) = scanDao.deleteNote(id)
+
+    suspend fun updateScanNote(id: String, text: String) {
+        if (text.isBlank()) return
+        scanDao.updateNoteText(id, text.trim())
+    }
 
     fun scanPhotos(scanId: String): Flow<List<ScanPhotoEntity>> = scanDao.photosForScan(scanId)
 
@@ -239,6 +254,25 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
     }
 
     suspend fun deleteDamageNote(id: String) = damageDao.deleteNote(id)
+
+    suspend fun updateDamageNote(id: String, text: String) {
+        if (text.isBlank()) return
+        damageDao.updateNoteText(id, text.trim())
+    }
+
+    /** e.g. corrected count after a restoration; marks the scan as edited. */
+    suspend fun updateScanQuantity(scanId: String, quantity: String?) {
+        val existing = scanDao.byId(scanId) ?: return
+        val newQty = quantity?.trim()?.ifEmpty { null }
+        if (newQty == existing.quantity) return
+        scanDao.upsert(
+            existing.copy(
+                quantity = newQty,
+                edited = true,
+                originalQuantity = existing.originalQuantity ?: existing.quantity,
+            ),
+        )
+    }
 
     suspend fun setDamageStatus(reportId: String, status: String) = damageDao.setStatus(reportId, status)
 

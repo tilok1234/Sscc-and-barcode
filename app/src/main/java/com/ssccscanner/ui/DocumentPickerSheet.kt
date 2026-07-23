@@ -131,15 +131,34 @@ fun DocumentPickerSheet(
                                 ),
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = doc.name,
-                                color = Tokens.TextPrimary,
-                                fontFamily = PlexSans,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = doc.name,
+                                    color = Tokens.TextPrimary,
+                                    fontFamily = PlexSans,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                if (doc.isBatch) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(Tokens.Accent.copy(alpha = 0.15f), RoundedCornerShape(100.dp))
+                                            .border(1.dp, Tokens.Accent.copy(alpha = 0.45f), RoundedCornerShape(100.dp))
+                                            .padding(horizontal = 6.dp, vertical = 1.dp),
+                                    ) {
+                                        Text(
+                                            text = "BATCH",
+                                            color = Tokens.Accent,
+                                            fontFamily = PlexSans,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 8.5.sp,
+                                        )
+                                    }
+                                }
+                            }
                             Text(
                                 text = if (doc.scanCount == 1) "1 scan" else "${doc.scanCount} scans",
                                 color = Tokens.ink(0.45f),

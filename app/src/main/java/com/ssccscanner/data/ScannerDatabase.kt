@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DamageReportEntity::class, DamagePhotoEntity::class, DamageNoteEntity::class,
         ScanNoteEntity::class, ScanPhotoEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class ScannerDatabase : RoomDatabase() {
@@ -108,9 +108,18 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        /** v4 → v5: batch documents, summary toggle, original-quantity history. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `documents` ADD COLUMN `isBatch` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `documents` ADD COLUMN `showSummary` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `scans` ADD COLUMN `originalQuantity` TEXT")
+            }
+        }
+
         fun build(context: Context): ScannerDatabase =
             Room.databaseBuilder(context, ScannerDatabase::class.java, "sscc-scanner.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
     }

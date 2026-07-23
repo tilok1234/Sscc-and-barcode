@@ -11,6 +11,10 @@ data class DocumentEntity(
     @PrimaryKey val id: String,
     val name: String,
     val createdAt: Long,
+    // Created via batch mode — gets a BATCH chip and an always-on summary
+    @ColumnInfo(defaultValue = "0") val isBatch: Boolean = false,
+    // Batch summary opt-in for normal documents
+    @ColumnInfo(defaultValue = "0") val showSummary: Boolean = false,
 )
 
 @Entity(
@@ -41,6 +45,8 @@ data class ScanEntity(
     @ColumnInfo(typeAffinity = ColumnInfo.BLOB) val thumbnail: ByteArray?,
     // Viewing-quality JPEG of the scanned label in app-private storage
     val labelPhotoPath: String? = null,
+    // Set once, on the first quantity edit — preserves the as-scanned count
+    val originalQuantity: String? = null,
 ) {
     override fun equals(other: Any?): Boolean = other is ScanEntity && other.id == id
     override fun hashCode(): Int = id.hashCode()
@@ -91,12 +97,15 @@ data class DocumentSummary(
     val id: String,
     val name: String,
     val createdAt: Long,
+    val isBatch: Boolean,
+    val showSummary: Boolean,
     val scanCount: Int,
     val lastScanAt: Long?,
     @ColumnInfo(typeAffinity = ColumnInfo.BLOB) val lastThumbnail: ByteArray? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         other is DocumentSummary && other.id == id && other.name == name &&
-            other.scanCount == scanCount && other.lastScanAt == lastScanAt
+            other.scanCount == scanCount && other.lastScanAt == lastScanAt &&
+            other.isBatch == isBatch && other.showSummary == showSummary
     override fun hashCode(): Int = id.hashCode()
 }

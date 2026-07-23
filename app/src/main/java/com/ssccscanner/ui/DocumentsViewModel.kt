@@ -35,9 +35,13 @@ class DocumentsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun scansFor(documentId: String): Flow<List<ScanEntity>> = repository.scansFor(documentId)
 
-    fun createDocument(name: String) {
+    fun createDocument(name: String, isBatch: Boolean = false) {
         if (name.isBlank()) return
-        viewModelScope.launch { repository.createDocument(name) }
+        viewModelScope.launch { repository.createDocument(name, isBatch) }
+    }
+
+    fun setDocumentSummary(id: String, on: Boolean) {
+        viewModelScope.launch { repository.setDocumentSummary(id, on) }
     }
 
     fun setActiveDocument(id: String) {
@@ -71,6 +75,10 @@ class DocumentsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteScanNote(id: String) {
         viewModelScope.launch { repository.deleteScanNote(id) }
+    }
+
+    fun editScanNote(id: String, text: String) {
+        viewModelScope.launch { repository.updateScanNote(id, text) }
     }
 
     fun scanPhotos(scanId: String) = repository.scanPhotos(scanId)

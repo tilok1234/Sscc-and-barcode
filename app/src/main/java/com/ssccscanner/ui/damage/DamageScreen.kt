@@ -266,6 +266,8 @@ private fun DamageDetail(
     // Set when Restored/Sanitized was just pressed: opens the status-note composer.
     var statusNoteKind by remember { mutableStateOf<String?>(null) }
     var statusNoteDraft by remember { mutableStateOf("") }
+    // Quantity often changes when a pallet is restored (some units scrapped).
+    var restoredQtyDraft by remember { mutableStateOf("") }
 
     // Camera capture into a FileProvider cache uri, then persisted by the VM.
     var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
@@ -402,6 +404,7 @@ private fun DamageDetail(
                             viewModel.setStatus(reportId, DamageReportEntity.STATUS_RESTORED)
                             statusNoteKind = DamageReportEntity.STATUS_RESTORED
                             statusNoteDraft = ""
+                            restoredQtyDraft = entry.scan.quantity.orEmpty()
                         }
                         StatusActionButton(
                             text = "Report sanitized",
@@ -466,6 +469,47 @@ private fun DamageDetail(
                                 modifier = Modifier.fillMaxWidth().height(64.dp),
                             )
                         }
+                        if (kind == DamageReportEntity.STATUS_RESTORED) {
+                            // Restoration often changes the count (scrapped units).
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "QTY AFTER RESTORE",
+                                    color = Tokens.ink(0.45f),
+                                    fontFamily = PlexSans,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 9.5.sp,
+                                    letterSpacing = 0.08.em,
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .width(90.dp)
+                                        .background(Tokens.ink(0.06f), RoundedCornerShape(9.dp))
+                                        .border(1.dp, Tokens.ink(0.16f), RoundedCornerShape(9.dp))
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                ) {
+                                    BasicTextField(
+                                        value = restoredQtyDraft,
+                                        onValueChange = { v -> restoredQtyDraft = v.filter(Char::isDigit) },
+                                        singleLine = true,
+                                        textStyle = TextStyle(
+                                            color = Tokens.TextBright,
+                                            fontFamily = PlexMono,
+                                            fontSize = 13.sp,
+                                        ),
+                                        cursorBrush = SolidColor(Tokens.Accent),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                                if (entry.scan.quantity != null && restoredQtyDraft != entry.scan.quantity) {
+                                    Text(
+                                        text = "was ${entry.scan.quantity}",
+                                        color = Tokens.Warning,
+                                        fontFamily = PlexMono,
+                                        fontSize = 11.sp,
+                                    )
+                                }
+                            }
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
@@ -490,6 +534,11 @@ private fun DamageDetail(
                                     ) {
                                         if (statusNoteDraft.isNotBlank()) {
                                             viewModel.addNote(reportId, statusNoteDraft.trim(), kind)
+                                        }
+                                        if (kind == DamageReportEntity.STATUS_RESTORED &&
+                                            restoredQtyDraft != entry.scan.quantity.orEmpty()
+                                        ) {
+                                            viewModel.updateQuantity(entry.scan.id, restoredQtyDraft.ifBlank { null })
                                         }
                                         statusNoteKind = null
                                         toast.show(
@@ -546,16 +595,24 @@ private fun DamageDetail(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MiniField("Batch", entry.scan.batchNo, Modifier.weight(1f))
-                    MiniField("GTIN/EAN", entry.scan.gtin, Modifier.weight(1f))
                     MiniField("Best before", entry.scan.bestBefore, Modifier.weight(1f))
+                    MiniField(
+                        "Quantity",
+                        entry.scan.quantity?.let { q ->
+                            val orig = entry.scan.originalQuantity
+                            if (orig != null && orig != q) "$q (was $orig)" else q
+                        } ?: entry.scan.originalQuantity?.let { "— (was $it)" },
+                        Modifier.weight(1f),
+                    )
                 }
             }
 
-            // Notes log
+            // Notes log — tap a note to edit it
             NotesSection(
                 notes = entry.notes.map { NoteItem(it.id, it.text, it.createdAt, it.kind) },
                 onAdd = { viewModel.addNote(reportId, it) },
                 onDelete = { viewModel.deleteNote(it.id) },
+                onEdit = { note, text -> viewModel.editNote(note.id, text) },
             )
 
             // Photos
