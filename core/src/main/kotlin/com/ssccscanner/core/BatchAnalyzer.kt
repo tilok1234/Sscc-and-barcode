@@ -79,14 +79,9 @@ object BatchAnalyzer {
             }
         }
 
-        val noBatch = groups.firstOrNull { it.batchNo == null }
-        if (noBatch != null && groups.size > 1) {
-            val word = if (noBatch.palletCount == 1) "pallet has" else "pallets have"
-            discrepancies.add(
-                Discrepancy(Severity.WARNING, "${noBatch.palletCount} $word no batch number"),
-            )
-        }
-
+        // A missing batch number is NOT flagged: unbatched goods (cups,
+        // glasses, storage materials) are a normal part of loads. The
+        // "No batch no." group row in the summary is visibility enough.
         return Summary(groups, discrepancies)
     }
 

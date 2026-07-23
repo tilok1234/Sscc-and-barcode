@@ -130,6 +130,7 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
 
     suspend fun updateScanFields(id: String, fields: ScanFields) {
         val existing = scanDao.byId(id) ?: return
+        logFieldEdits(existing, fields)
         scanDao.upsert(
             existing.copy(
                 sscc = fields.sscc,
@@ -144,6 +145,36 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
             ),
         )
     }
+
+    /**
+     * Append every changed field to the immutable edit ledger BEFORE the scan
+     * row is overwritten. The ledger has no update/delete path — edits stay
+     * honest by design.
+     */
+    private suspend fun logFieldEdits(existing: ScanEntity, new: ScanFields) {
+        val now = System.currentTimeMillis()
+        suspend fun log(field: String, old: String?, newValue: String?) {
+            if (old != newValue) {
+                scanDao.insertFieldEdit(
+                    FieldEditEntity(
+                        id = newId(),
+                        scanId = existing.id,
+                        field = field,
+                        oldValue = old,
+                        newValue = newValue,
+                        createdAt = now,
+                    ),
+                )
+            }
+        }
+        log("sscc", existing.sscc, new.sscc)
+        log("batchNo", existing.batchNo, new.batchNo)
+        log("gtin", existing.gtin, new.gtin)
+        log("bestBefore", existing.bestBefore, new.bestBefore)
+        log("quantity", existing.quantity, new.quantity)
+    }
+
+    fun fieldEdits(scanId: String): Flow<List<FieldEditEntity>> = scanDao.fieldEditsForScan(scanId)
 
     suspend fun deleteScan(id: String) {
         scanDao.byId(id)?.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
@@ -265,6 +296,16 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         val existing = scanDao.byId(scanId) ?: return
         val newQty = quantity?.trim()?.ifEmpty { null }
         if (newQty == existing.quantity) return
+        scanDao.insertFieldEdit(
+            FieldEditEntity(
+                id = newId(),
+                scanId = scanId,
+                field = "quantity",
+                oldValue = existing.quantity,
+                newValue = newQty,
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
         scanDao.upsert(
             existing.copy(
                 quantity = newQty,

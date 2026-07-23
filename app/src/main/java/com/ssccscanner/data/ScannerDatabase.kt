@@ -11,9 +11,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         DocumentEntity::class, ScanEntity::class,
         DamageReportEntity::class, DamagePhotoEntity::class, DamageNoteEntity::class,
-        ScanNoteEntity::class, ScanPhotoEntity::class,
+        ScanNoteEntity::class, ScanPhotoEntity::class, FieldEditEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class ScannerDatabase : RoomDatabase() {
@@ -117,9 +117,27 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        /** v5 → v6: append-only field-edit ledger. */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `field_edits` (
+                        `id` TEXT NOT NULL, `scanId` TEXT NOT NULL,
+                        `field` TEXT NOT NULL, `oldValue` TEXT, `newValue` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`scanId`) REFERENCES `scans`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_field_edits_scanId` ON `field_edits` (`scanId`)")
+            }
+        }
+
         fun build(context: Context): ScannerDatabase =
             Room.databaseBuilder(context, ScannerDatabase::class.java, "sscc-scanner.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .fallbackToDestructiveMigration()
                 .build()
     }

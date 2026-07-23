@@ -92,6 +92,32 @@ data class ScanPhotoEntity(
     val createdAt: Long,
 )
 
+/**
+ * Append-only ledger of manual field edits on a scan. Rows are written by the
+ * repository on every change and are deliberately never editable or deletable
+ * from the UI — the as-scanned truth stays on record.
+ */
+@Entity(
+    tableName = "field_edits",
+    foreignKeys = [
+        ForeignKey(
+            entity = ScanEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["scanId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("scanId")],
+)
+data class FieldEditEntity(
+    @PrimaryKey val id: String,
+    val scanId: String,
+    val field: String,      // sscc | batchNo | gtin | bestBefore | quantity
+    val oldValue: String?,
+    val newValue: String?,
+    val createdAt: Long,
+)
+
 /** Row shape for the Library list: document + aggregate scan info. */
 data class DocumentSummary(
     val id: String,

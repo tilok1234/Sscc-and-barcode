@@ -565,7 +565,16 @@ private fun ScanDetail(
 
     val notes by remember(scan.id) { viewModel.scanNotes(scan.id) }.collectAsState(initial = emptyList())
     val photos by remember(scan.id) { viewModel.scanPhotos(scan.id) }.collectAsState(initial = emptyList())
+    val fieldEdits by remember(scan.id) { viewModel.fieldEdits(scan.id) }.collectAsState(initial = emptyList())
     var viewingPhoto by remember { mutableStateOf<com.ssccscanner.data.ScanPhotoEntity?>(null) }
+
+    // Full field editing — every change lands in the immutable edit ledger.
+    var editing by remember(scan.id) { mutableStateOf(false) }
+    var editSscc by remember(scan.id) { mutableStateOf(scan.sscc.orEmpty()) }
+    var editBatch by remember(scan.id) { mutableStateOf(scan.batchNo.orEmpty()) }
+    var editGtin by remember(scan.id) { mutableStateOf(scan.gtin.orEmpty()) }
+    var editBestBefore by remember(scan.id) { mutableStateOf(scan.bestBefore.orEmpty()) }
+    var editQuantity by remember(scan.id) { mutableStateOf(scan.quantity.orEmpty()) }
 
     var pendingCaptureUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val takePicture = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -626,7 +635,42 @@ private fun ScanDetail(
                 fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
+            if (!editing) {
+                Row(
+                    modifier = Modifier
+                        .border(1.dp, Tokens.ink(0.18f), RoundedCornerShape(100.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            editSscc = scan.sscc.orEmpty()
+                            editBatch = scan.batchNo.orEmpty()
+                            editGtin = scan.gtin.orEmpty()
+                            editBestBefore = scan.bestBefore.orEmpty()
+                            editQuantity = scan.quantity.orEmpty()
+                            editing = true
+                        }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Pencil,
+                        contentDescription = "Edit",
+                        tint = Tokens.TextPrimary,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Text(
+                        text = "Edit",
+                        color = Tokens.TextPrimary,
+                        fontFamily = PlexSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.5.sp,
+                    )
+                }
+            }
         }
 
         Column(
@@ -658,83 +702,192 @@ private fun ScanDetail(
                 }
             }
 
-            DetailField(label = "SSCC", value = scan.sscc, big = true) {
-                clipboard.setText(AnnotatedString(it))
-                toast.show("SSCC copied")
-            }
-            DetailField(label = "Batch no.", value = scan.batchNo) {
-                clipboard.setText(AnnotatedString(it))
-                toast.show("Batch number copied")
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MiniField("GTIN/EAN", scan.gtin, Modifier.weight(1f))
-                MiniField("Best before", scan.bestBefore, Modifier.weight(1f))
-                // The as-scanned count stays visible after any quantity edit.
-                MiniField(
-                    "Quantity",
-                    scan.quantity?.let { q ->
-                        val orig = scan.originalQuantity
-                        if (orig != null && orig != q) "$q (was $orig)" else q
-                    } ?: scan.originalQuantity?.let { "— (was $it)" },
-                    Modifier.weight(1f),
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Tokens.DangerBg, RoundedCornerShape(12.dp))
-                    .border(1.dp, Tokens.DangerBorder, RoundedCornerShape(12.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { onReportDamage(scan.id) }
-                    .padding(vertical = 13.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = AppIcons.Alert,
-                    contentDescription = null,
-                    tint = Tokens.DangerText,
-                    modifier = Modifier.size(15.dp),
-                )
-                Spacer(modifier = Modifier.width(7.dp))
-                Text(
-                    text = "Report damage on this pallet",
-                    color = Tokens.DangerText,
-                    fontFamily = PlexSans,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                )
-            }
-
-            com.ssccscanner.ui.NotesSection(
-                notes = notes.map { com.ssccscanner.ui.NoteItem(it.id, it.text, it.createdAt) },
-                onAdd = { viewModel.addScanNote(scan.id, it) },
-                onDelete = { viewModel.deleteScanNote(it.id) },
-                onEdit = { note, text -> viewModel.editScanNote(note.id, text) },
-            )
-
-            com.ssccscanner.ui.PhotosSection(
-                photos = photos.map { com.ssccscanner.ui.PhotoItem(it.id, it.filePath) },
-                onAddCamera = capturePhoto,
-                onAddGallery = {
-                    galleryLauncher.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
-                        ),
+            if (editing) {
+                val ssccStatus = com.ssccscanner.core.SsccValidator.status(editSscc)
+                val ssccOk = editSscc.isEmpty() || ssccStatus == com.ssccscanner.core.SsccValidator.Status.OK
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ScanEditLabel("SSCC")
+                    ScanEditField(
+                        value = editSscc,
+                        onChange = { editSscc = it.filter { c -> c.isDigit() || c == ' ' } },
+                        isError = !ssccOk,
                     )
-                },
-                onOpen = { item -> viewingPhoto = photos.firstOrNull { it.id == item.id } },
-            )
+                    if (!ssccOk) {
+                        Text(
+                            text = when (ssccStatus) {
+                                com.ssccscanner.core.SsccValidator.Status.WRONG_LENGTH -> "SSCC should be exactly 18 digits."
+                                else -> "Check digit doesn't match — one digit may be wrong."
+                            },
+                            color = Tokens.DangerText,
+                            fontFamily = PlexSans,
+                            fontSize = 10.5.sp,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ScanEditLabel("Batch no.")
+                    ScanEditField(value = editBatch, onChange = { editBatch = it })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ScanEditLabel("GTIN/EAN")
+                        ScanEditField(value = editGtin, onChange = { editGtin = it.filter(Char::isDigit) })
+                    }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ScanEditLabel("Best before")
+                        ScanEditField(value = editBestBefore, onChange = { editBestBefore = it })
+                    }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ScanEditLabel("Quantity")
+                        ScanEditField(value = editQuantity, onChange = { editQuantity = it.filter(Char::isDigit) })
+                    }
+                }
+                Text(
+                    text = "Every change is recorded in the edit history below — the original values always stay on file.",
+                    color = Tokens.ink(0.45f),
+                    fontFamily = PlexSans,
+                    fontSize = 10.5.sp,
+                    lineHeight = 15.sp,
+                )
+            } else {
+                DetailField(label = "SSCC", value = scan.sscc, big = true) {
+                    clipboard.setText(AnnotatedString(it))
+                    toast.show("SSCC copied")
+                }
+                DetailField(label = "Batch no.", value = scan.batchNo) {
+                    clipboard.setText(AnnotatedString(it))
+                    toast.show("Batch number copied")
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MiniField("GTIN/EAN", scan.gtin, Modifier.weight(1f))
+                    MiniField("Best before", scan.bestBefore, Modifier.weight(1f))
+                    // The as-scanned count stays visible after any quantity edit.
+                    MiniField(
+                        "Quantity",
+                        scan.quantity?.let { q ->
+                            val orig = scan.originalQuantity
+                            if (orig != null && orig != q) "$q (was $orig)" else q
+                        } ?: scan.originalQuantity?.let { "— (was $it)" },
+                        Modifier.weight(1f),
+                    )
+                }
+            }
+
+            if (fieldEdits.isNotEmpty()) {
+                EditHistorySection(edits = fieldEdits)
+            }
+
+            if (!editing) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Tokens.DangerBg, RoundedCornerShape(12.dp))
+                        .border(1.dp, Tokens.DangerBorder, RoundedCornerShape(12.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onReportDamage(scan.id) }
+                        .padding(vertical = 13.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Alert,
+                        contentDescription = null,
+                        tint = Tokens.DangerText,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = "Report damage on this pallet",
+                        color = Tokens.DangerText,
+                        fontFamily = PlexSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                    )
+                }
+
+                com.ssccscanner.ui.NotesSection(
+                    notes = notes.map { com.ssccscanner.ui.NoteItem(it.id, it.text, it.createdAt) },
+                    onAdd = { viewModel.addScanNote(scan.id, it) },
+                    onDelete = { viewModel.deleteScanNote(it.id) },
+                    onEdit = { note, text -> viewModel.editScanNote(note.id, text) },
+                )
+
+                com.ssccscanner.ui.PhotosSection(
+                    photos = photos.map { com.ssccscanner.ui.PhotoItem(it.id, it.filePath) },
+                    onAddCamera = capturePhoto,
+                    onAddGallery = {
+                        galleryLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                            ),
+                        )
+                    },
+                    onOpen = { item -> viewingPhoto = photos.firstOrNull { it.id == item.id } },
+                )
+            }
         }
 
         Row(
             modifier = Modifier.fillMaxWidth().background(Tokens.Panel).padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (editing) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Tokens.ink(0.08f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Tokens.ink(0.18f), RoundedCornerShape(12.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { editing = false }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Cancel",
+                        color = Tokens.TextPrimary,
+                        fontFamily = PlexSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Tokens.Accent, RoundedCornerShape(12.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            viewModel.updateScan(
+                                scan.id,
+                                com.ssccscanner.data.ScannerRepository.fieldsOf(scan).copy(
+                                    sscc = editSscc.filter(Char::isDigit).ifEmpty { null },
+                                    batchNo = editBatch.trim().ifEmpty { null },
+                                    gtin = editGtin.trim().ifEmpty { null },
+                                    bestBefore = editBestBefore.trim().ifEmpty { null },
+                                    quantity = editQuantity.trim().ifEmpty { null },
+                                ),
+                            )
+                            editing = false
+                            toast.show("Changes saved")
+                        }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Save changes",
+                        color = Tokens.OnAccent,
+                        fontFamily = PlexSans,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                    )
+                }
+            } else {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -788,6 +941,7 @@ private fun ScanDetail(
                     fontSize = 13.sp,
                 )
             }
+            }
         }
     }
 
@@ -806,6 +960,95 @@ private fun ScanDetail(
             )
         } else {
             viewingPhoto = null
+        }
+    }
+}
+
+// --- Scan field editing + immutable history ---
+
+@Composable
+private fun ScanEditLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        color = Tokens.ink(0.45f),
+        fontFamily = PlexSans,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 10.sp,
+        letterSpacing = 0.08.em,
+    )
+}
+
+@Composable
+private fun ScanEditField(
+    value: String,
+    onChange: (String) -> Unit,
+    isError: Boolean = false,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Tokens.ink(0.06f), RoundedCornerShape(9.dp))
+            .border(
+                1.dp,
+                if (isError) Tokens.Danger.copy(alpha = 0.5f) else Tokens.ink(0.16f),
+                RoundedCornerShape(9.dp),
+            )
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            singleLine = true,
+            textStyle = TextStyle(color = Tokens.TextBright, fontFamily = PlexMono, fontSize = 13.sp),
+            cursorBrush = SolidColor(Tokens.Accent),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private val FIELD_LABELS = mapOf(
+    "sscc" to "SSCC",
+    "batchNo" to "Batch no.",
+    "gtin" to "GTIN/EAN",
+    "bestBefore" to "Best before",
+    "quantity" to "Quantity",
+)
+
+/** Read-only, append-only record of every manual field change on this scan. */
+@Composable
+private fun EditHistorySection(edits: List<com.ssccscanner.data.FieldEditEntity>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Tokens.ink(0.04f), RoundedCornerShape(10.dp))
+            .border(1.dp, Tokens.Warning.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = "EDIT HISTORY",
+            color = Tokens.Warning,
+            fontFamily = PlexSans,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 10.sp,
+            letterSpacing = 0.08.em,
+        )
+        edits.sortedBy { it.createdAt }.forEach { e ->
+            Text(
+                text = buildString {
+                    append(relativeTime(e.createdAt))
+                    append(" · ")
+                    append(FIELD_LABELS[e.field] ?: e.field)
+                    append(": ")
+                    append(e.oldValue ?: "—")
+                    append(" → ")
+                    append(e.newValue ?: "—")
+                },
+                color = Tokens.ink(0.65f),
+                fontFamily = PlexMono,
+                fontSize = 10.5.sp,
+                lineHeight = 15.sp,
+            )
         }
     }
 }

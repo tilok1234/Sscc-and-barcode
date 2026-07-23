@@ -69,6 +69,9 @@ class DocumentsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun scanNotes(scanId: String) = repository.scanNotes(scanId)
 
+    /** Append-only edit ledger for a scan (read-only in the UI by design). */
+    fun fieldEdits(scanId: String) = repository.fieldEdits(scanId)
+
     fun addScanNote(scanId: String, text: String) {
         viewModelScope.launch { repository.addScanNote(scanId, text) }
     }

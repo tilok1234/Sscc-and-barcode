@@ -104,6 +104,14 @@ interface ScanDao {
     )
     suspend fun photoPathsForDocument(documentId: String): List<String>
 
+    // --- Field edit ledger (append-only; no update/delete on purpose) ---
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertFieldEdit(edit: FieldEditEntity)
+
+    @Query("SELECT * FROM field_edits WHERE scanId = :scanId ORDER BY createdAt ASC")
+    fun fieldEditsForScan(scanId: String): Flow<List<FieldEditEntity>>
+
     // --- Retention cleanup ---
 
     @Query("SELECT * FROM scans WHERE labelPhotoPath IS NOT NULL AND timestamp < :cutoff")

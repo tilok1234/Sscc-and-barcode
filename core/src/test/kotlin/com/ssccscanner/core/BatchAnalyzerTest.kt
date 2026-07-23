@@ -53,14 +53,16 @@ class BatchAnalyzerTest {
     }
 
     @Test
-    fun `pallets without batch number are a warning when batches exist`() {
+    fun `pallets without batch number are grouped but never flagged`() {
         val s = BatchAnalyzer.analyze(
             listOf(scan("A1", "2026-12-01"), scan(null, "2026-12-01"), scan(null, null)),
             today,
         )
-        assertTrue(s.discrepancies.any { it.severity == BatchAnalyzer.Severity.WARNING && it.message.contains("no batch number") })
-        // no-batch bucket sorts last
+        // Unbatched goods (cups, glasses, storage materials) are normal.
+        assertTrue(s.discrepancies.isEmpty())
+        // no-batch bucket still sorts last for visibility
         assertEquals(null, s.groups.last().batchNo)
+        assertEquals(2, s.groups.last().palletCount)
     }
 
     @Test
