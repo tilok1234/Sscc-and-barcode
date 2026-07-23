@@ -48,6 +48,24 @@ object ImageUtils {
         }
     }
 
+    /** Viewing-quality JPEG of a scanned label (~1280px, q75), from a bitmap. */
+    fun labelJpeg(source: Bitmap, maxWidth: Int = 1280, quality: Int = 75): ByteArray {
+        val scale = maxWidth.toFloat() / maxOf(source.width, source.height)
+        val scaled = if (scale < 1f) {
+            Bitmap.createScaledBitmap(
+                source,
+                (source.width * scale).toInt().coerceAtLeast(1),
+                (source.height * scale).toInt().coerceAtLeast(1),
+                true,
+            )
+        } else {
+            source
+        }
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
+        return out.toByteArray()
+    }
+
     /** Full-quality-ish JPEG for damage evidence photos (~1600px, q80). */
     fun evidenceJpeg(context: Context, uri: Uri): ByteArray? {
         val bitmap = loadScaled(context, uri, maxWidth = 1600) ?: return null

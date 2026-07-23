@@ -21,6 +21,7 @@ data class PendingScan(
     val scanId: String?,           // Room id once persisted
     val fields: ScanFields,
     val thumbnail: ByteArray?,
+    val labelPhoto: ByteArray?,    // viewing-quality label image (also persisted to disk)
     val timestamp: Long,
 )
 
@@ -59,6 +60,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
     // frames for a short window so one "scan" captures the whole label.
     private var aggregate: ScanFields? = null
     private var aggregateStartedAt = 0L
+    private var lastDecodedFrame: Bitmap? = null
 
     private val errorMessage =
         "Couldn't find an SSCC or batch number on this label. Try getting closer and keeping the text in focus."
@@ -91,7 +93,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repository.setScanMode(if (mode == ScanMode.LABEL) "label" else "barcode") }
     }
 
-    fun onBarcodesDetected(barcodes: List<DetectedBarcode>) {
+    fun onBarcodesDetected(barcodes: List<DetectedBarcode>, frameBitmap: Bitmap?) {
         if (_state.value.flow != ScanFlow.Ready) return
         if (_state.value.scanMode != ScanMode.BARCODE) return
 
@@ -100,6 +102,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
             val frame = FieldMerger.combineBarcodes(decoded)
             aggregate = FieldMerger.combineBarcodes(listOfNotNull(aggregate, frame))
             if (aggregateStartedAt == 0L) aggregateStartedAt = System.currentTimeMillis()
+            if (frameBitmap != null) lastDecodedFrame = frameBitmap
         }
 
         val agg = aggregate ?: return
@@ -107,7 +110,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
         val windowElapsed =
             aggregateStartedAt != 0L && System.currentTimeMillis() - aggregateStartedAt > AGGREGATION_WINDOW_MS
         if (complete || (windowElapsed && !agg.isEmpty)) {
-            finalizeScan(agg, sourceBitmap = null)
+            finalizeScan(agg, sourceBitmap = lastDecodedFrame)
         }
     }
 
@@ -136,15 +139,16 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
         resetAggregation()
         val timestamp = System.currentTimeMillis()
         val thumbnail = sourceBitmap?.let { ImageUtils.thumbnailJpeg(it) }
+        val labelPhoto = sourceBitmap?.let { ImageUtils.labelJpeg(it) }
         // Show the result immediately; persistence completes in the background.
         _state.update {
             it.copy(
-                flow = ScanFlow.Result(PendingScan(null, fields, thumbnail, timestamp)),
+                flow = ScanFlow.Result(PendingScan(null, fields, thumbnail, labelPhoto, timestamp)),
                 batchCount = if (it.batchMode) it.batchCount + 1 else it.batchCount,
             )
         }
         viewModelScope.launch {
-            val saved = repository.addScan(fields, thumbnail, timestamp)
+            val saved = repository.addScan(fields, thumbnail, labelPhoto, timestamp)
             _state.update { s ->
                 val flow = s.flow
                 if (flow is ScanFlow.Result && flow.scan.timestamp == timestamp) {
@@ -182,6 +186,7 @@ class ScanViewModel(app: Application) : AndroidViewModel(app) {
     private fun resetAggregation() {
         aggregate = null
         aggregateStartedAt = 0L
+        lastDecodedFrame = null
     }
 
     companion object {

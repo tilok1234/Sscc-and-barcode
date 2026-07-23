@@ -328,6 +328,17 @@ private fun DamageDetail(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SectionLabel("Pallet label")
+                val labelBmp = remember(entry.scan.id) {
+                    entry.scan.labelPhotoPath?.let { ImageUtils.decodeFileScaled(it, maxWidth = 800) }
+                }
+                if (labelBmp != null) {
+                    Image(
+                        bitmap = labelBmp.asImageBitmap(),
+                        contentDescription = "Label photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(90.dp).background(Tokens.Surface, RoundedCornerShape(8.dp)),
+                    )
+                }
                 Text(
                     text = entry.scan.sscc ?: "—",
                     color = Tokens.TextBright,
@@ -657,9 +668,11 @@ private fun shareReport(context: Context, entry: DamageReportWithScan, comment: 
         append("Photos attached: ${entry.photos.size}")
     }
 
+    // Attach the label photo first, then the damage photos.
+    val allPaths = listOfNotNull(entry.scan.labelPhotoPath) + entry.photos.map { it.filePath }
     val photoUris = ArrayList(
-        entry.photos.mapNotNull { photo ->
-            val f = File(photo.filePath)
+        allPaths.mapNotNull { path ->
+            val f = File(path)
             if (f.exists()) {
                 FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", f)
             } else {

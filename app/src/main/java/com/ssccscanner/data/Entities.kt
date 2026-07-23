@@ -37,8 +37,10 @@ data class ScanEntity(
     val source: String,              // barcode | ocr | mixed | manual
     val edited: Boolean,
     val timestamp: Long,
-    // Small JPEG only — never the full photo (handoff's storage rule)
+    // Small JPEG for list rows; the full label photo lives on disk (below)
     @ColumnInfo(typeAffinity = ColumnInfo.BLOB) val thumbnail: ByteArray?,
+    // Viewing-quality JPEG of the scanned label in app-private storage
+    val labelPhotoPath: String? = null,
 ) {
     override fun equals(other: Any?): Boolean = other is ScanEntity && other.id == id
     override fun hashCode(): Int = id.hashCode()

@@ -69,4 +69,15 @@ interface ScanDao {
 
     @Query("DELETE FROM scans WHERE id = :id")
     suspend fun delete(id: String)
+
+    // --- Retention cleanup ---
+
+    @Query("SELECT * FROM scans WHERE labelPhotoPath IS NOT NULL AND timestamp < :cutoff")
+    suspend fun scansWithPhotosOlderThan(cutoff: Long): List<ScanEntity>
+
+    @Query("UPDATE scans SET labelPhotoPath = NULL WHERE id = :id")
+    suspend fun clearLabelPhoto(id: String)
+
+    @Query("SELECT * FROM scans WHERE timestamp < :cutoff AND id NOT IN (SELECT scanId FROM damage_reports)")
+    suspend fun undamagedScansOlderThan(cutoff: Long): List<ScanEntity>
 }

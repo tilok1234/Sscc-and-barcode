@@ -61,6 +61,39 @@ class DocumentsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repository.updateScanFields(id, fields) }
     }
 
+    // --- Retention settings ---
+
+    val compressAfterDays: StateFlow<Int> =
+        repository.compressAfterDays.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val deleteAfterDays: StateFlow<Int> =
+        repository.deleteAfterDays.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private val _photoStorageBytes = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val photoStorageBytes: StateFlow<Long> = _photoStorageBytes
+
+    fun refreshStorageUsage() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            _photoStorageBytes.value = repository.photoStorageBytes()
+        }
+    }
+
+    fun setCompressAfterDays(days: Int) {
+        viewModelScope.launch {
+            repository.setCompressAfterDays(days)
+            repository.runRetentionCleanup()
+            refreshStorageUsage()
+        }
+    }
+
+    fun setDeleteAfterDays(days: Int) {
+        viewModelScope.launch {
+            repository.setDeleteAfterDays(days)
+            repository.runRetentionCleanup()
+            refreshStorageUsage()
+        }
+    }
+
     /** Builds the CSV in the background, then fires the share sheet. */
     fun exportCsv(context: Context, document: DocumentSummary) {
         viewModelScope.launch {

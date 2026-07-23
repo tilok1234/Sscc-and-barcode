@@ -54,6 +54,10 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
     suspend fun renameDocument(id: String, name: String) = documentDao.rename(id, name.trim())
 
     suspend fun deleteDocument(id: String) {
+        // Cascade removes the scan rows; their label photo files need explicit cleanup.
+        scanDao.scansForDocumentOnce(id).forEach { scan ->
+            scan.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
+        }
         documentDao.delete(id) // scans cascade
         val fallback = documentDao.oldest()
         context.prefs.edit { prefs ->
@@ -80,11 +84,25 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
 
     suspend fun latestThumbnail(documentId: String): ByteArray? = scanDao.latestThumbnail(documentId)
 
+    private fun labelPhotoDir(): java.io.File =
+        java.io.File(context.filesDir, "label_photos").apply { mkdirs() }
+
     /** Files a completed scan into the active document; returns the stored entity. */
-    suspend fun addScan(fields: ScanFields, thumbnail: ByteArray?, timestamp: Long): ScanEntity {
+    suspend fun addScan(
+        fields: ScanFields,
+        thumbnail: ByteArray?,
+        labelJpeg: ByteArray?,
+        timestamp: Long,
+    ): ScanEntity {
         val active = ensureActiveDocumentId()
+        val id = newId()
+        val photoPath = labelJpeg?.let { bytes ->
+            val f = java.io.File(labelPhotoDir(), "$id.jpg")
+            f.writeBytes(bytes)
+            f.absolutePath
+        }
         val entity = ScanEntity(
-            id = newId(),
+            id = id,
             documentId = active,
             sscc = fields.sscc,
             batchNo = fields.batchNo,
@@ -96,6 +114,7 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
             edited = false,
             timestamp = timestamp,
             thumbnail = thumbnail,
+            labelPhotoPath = photoPath,
         )
         scanDao.upsert(entity)
         return entity
@@ -115,7 +134,10 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         )
     }
 
-    suspend fun deleteScan(id: String) = scanDao.delete(id)
+    suspend fun deleteScan(id: String) {
+        scanDao.byId(id)?.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
+        scanDao.delete(id)
+    }
 
     private suspend fun ensureActiveDocumentId(): String {
         val current = context.prefs.data.first()[activeDocKey]
@@ -188,6 +210,58 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         val photos = damageDao.photosFor(reportId)
         damageDao.deleteReport(reportId) // photo rows cascade
         photos.forEach { runCatching { java.io.File(it.filePath).delete() } }
+    }
+
+    // --- Retention: auto-compress / auto-delete old entries (0 = off) ---
+
+    private val compressAfterDaysKey = androidx.datastore.preferences.core.intPreferencesKey("compress_after_days")
+    private val deleteAfterDaysKey = androidx.datastore.preferences.core.intPreferencesKey("delete_after_days")
+
+    val compressAfterDays: Flow<Int> = context.prefs.data.map { it[compressAfterDaysKey] ?: 0 }
+    val deleteAfterDays: Flow<Int> = context.prefs.data.map { it[deleteAfterDaysKey] ?: 0 }
+
+    suspend fun setCompressAfterDays(days: Int) {
+        context.prefs.edit { it[compressAfterDaysKey] = days }
+    }
+
+    suspend fun setDeleteAfterDays(days: Int) {
+        context.prefs.edit { it[deleteAfterDaysKey] = days }
+    }
+
+    /**
+     * Applies the retention settings. Compression drops the stored label photo
+     * (data + thumbnail stay); deletion removes whole scans — but never scans
+     * that have a damage report attached. Runs at app start.
+     */
+    suspend fun runRetentionCleanup() {
+        val prefs = context.prefs.data.first()
+        val now = System.currentTimeMillis()
+        val dayMs = 86_400_000L
+
+        val compressDays = prefs[compressAfterDaysKey] ?: 0
+        if (compressDays > 0) {
+            scanDao.scansWithPhotosOlderThan(now - compressDays * dayMs).forEach { scan ->
+                scan.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
+                scanDao.clearLabelPhoto(scan.id)
+            }
+        }
+
+        val deleteDays = prefs[deleteAfterDaysKey] ?: 0
+        if (deleteDays > 0) {
+            scanDao.undamagedScansOlderThan(now - deleteDays * dayMs).forEach { scan ->
+                scan.labelPhotoPath?.let { runCatching { java.io.File(it).delete() } }
+                scanDao.delete(scan.id)
+            }
+        }
+    }
+
+    /** Total bytes of stored label + damage photos, for the settings sheet. */
+    fun photoStorageBytes(): Long {
+        var total = 0L
+        for (dir in listOf(labelPhotoDir(), photoDir())) {
+            dir.listFiles()?.forEach { total += it.length() }
+        }
+        return total
     }
 
     // --- Scan mode (barcode = live auto-scan, label = shutter-driven full-label read) ---

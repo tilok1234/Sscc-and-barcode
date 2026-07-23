@@ -1,5 +1,7 @@
 package com.ssccscanner.scan
 
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -11,11 +13,12 @@ import com.google.mlkit.vision.common.InputImage
 
 /**
  * Feeds live camera frames to ML Kit's on-device barcode scanner and reports
- * every decoded symbol. Frame closing is tied to scanner completion so CameraX
+ * every decoded symbol, along with a bitmap of the decoding frame (kept as the
+ * scan's label photo). Frame closing is tied to scanner completion so CameraX
  * back-pressure (KEEP_ONLY_LATEST) naturally throttles analysis.
  */
 class BarcodeAnalyzer(
-    private val onBarcodes: (List<DetectedBarcode>) -> Unit,
+    private val onBarcodes: (List<DetectedBarcode>, Bitmap?) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
     private val scanner = BarcodeScanning.getClient(
@@ -47,7 +50,25 @@ class BarcodeAnalyzer(
         val input = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         scanner.process(input)
             .addOnSuccessListener { barcodes ->
-                if (barcodes.isNotEmpty()) onBarcodes(barcodes.map { it.toDetected() })
+                if (barcodes.isNotEmpty()) {
+                    // Convert only frames that decoded something — this frame
+                    // becomes the stored photo of the label. Must happen before
+                    // the proxy closes (the complete listener runs after us).
+                    val frame = runCatching {
+                        val raw = imageProxy.toBitmap()
+                        val degrees = imageProxy.imageInfo.rotationDegrees
+                        if (degrees != 0) {
+                            Bitmap.createBitmap(
+                                raw, 0, 0, raw.width, raw.height,
+                                Matrix().apply { postRotate(degrees.toFloat()) },
+                                true,
+                            )
+                        } else {
+                            raw
+                        }
+                    }.getOrNull()
+                    onBarcodes(barcodes.map { it.toDetected() }, frame)
+                }
             }
             .addOnCompleteListener { imageProxy.close() }
     }

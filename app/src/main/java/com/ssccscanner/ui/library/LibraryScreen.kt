@@ -116,6 +116,7 @@ private fun DocumentList(
 ) {
     val toast = LocalToast.current
     var pickerOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
     var confirmDeleteId by remember { mutableStateOf<String?>(null) }
 
     // Two-tap delete arms for ~2.5s, then reverts (handoff behavior).
@@ -148,6 +149,18 @@ private fun DocumentList(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = AppIcons.Sliders,
+                    contentDescription = "Settings",
+                    tint = Tokens.ink(0.6f),
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { settingsOpen = true },
+                )
+                Spacer(modifier = Modifier.size(12.dp))
                 Box(
                     modifier = Modifier
                         .border(1.dp, Tokens.ink(0.18f), RoundedCornerShape(100.dp))
@@ -196,6 +209,10 @@ private fun DocumentList(
                     }
                 }
             }
+        }
+
+        if (settingsOpen) {
+            com.ssccscanner.ui.SettingsSheet(viewModel = viewModel, onDismiss = { settingsOpen = false })
         }
 
         if (pickerOpen) {
@@ -539,14 +556,29 @@ private fun ScanDetail(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            val bmp = remember(scan.id) { ScanViewModel.decodeThumbnail(scan.thumbnail) }
+            // Full label photo when stored; falls back to the list thumbnail.
+            val bmp = remember(scan.id) {
+                scan.labelPhotoPath?.let { com.ssccscanner.scan.ImageUtils.decodeFileScaled(it, maxWidth = 1600) }
+                    ?: ScanViewModel.decodeThumbnail(scan.thumbnail)
+            }
+            var viewingLabel by remember(scan.id) { mutableStateOf(false) }
             if (bmp != null) {
                 Image(
                     bitmap = bmp.asImageBitmap(),
                     contentDescription = "Label photo",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(130.dp).background(Tokens.Panel, RoundedCornerShape(10.dp)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .background(Tokens.Panel, RoundedCornerShape(10.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { viewingLabel = true },
                 )
+                if (viewingLabel) {
+                    com.ssccscanner.ui.FullscreenPhotoOverlay(bitmap = bmp, onDismiss = { viewingLabel = false })
+                }
             }
 
             DetailField(label = "SSCC", value = scan.sscc, big = true) {

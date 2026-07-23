@@ -174,6 +174,17 @@ object AppIcons {
         }
     }
 
+    val Sliders: ImageVector by lazy {
+        strokeIcon("Sliders") {
+            moveTo(4.0f, 7.0f); lineTo(20.0f, 7.0f)
+            moveTo(14.5f, 5.2f); lineTo(14.5f, 8.8f)
+            moveTo(4.0f, 12.0f); lineTo(20.0f, 12.0f)
+            moveTo(8.5f, 10.2f); lineTo(8.5f, 13.8f)
+            moveTo(4.0f, 17.0f); lineTo(20.0f, 17.0f)
+            moveTo(16.5f, 15.2f); lineTo(16.5f, 18.8f)
+        }
+    }
+
     val Plus: ImageVector by lazy {
         strokeIcon("Plus") {
             moveTo(12.0f, 5.5f)

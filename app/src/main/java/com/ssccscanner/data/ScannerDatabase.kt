@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [DocumentEntity::class, ScanEntity::class, DamageReportEntity::class, DamagePhotoEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class ScannerDatabase : RoomDatabase() {
@@ -47,9 +47,16 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        /** v2 → v3: full label photo path on scans. Additive. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `scans` ADD COLUMN `labelPhotoPath` TEXT")
+            }
+        }
+
         fun build(context: Context): ScannerDatabase =
             Room.databaseBuilder(context, ScannerDatabase::class.java, "sscc-scanner.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
     }

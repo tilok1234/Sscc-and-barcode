@@ -211,7 +211,7 @@ fun ScanScreen(
 @Composable
 private fun CameraPreviewLayer(
     liveScanning: Boolean,
-    onBarcodes: (List<DetectedBarcode>) -> Unit,
+    onBarcodes: (List<DetectedBarcode>, android.graphics.Bitmap?) -> Unit,
     imageCapture: ImageCapture,
 ) {
     val context = LocalContext.current
@@ -234,8 +234,19 @@ private fun CameraPreviewLayer(
                 add(preview)
                 add(imageCapture)
                 if (liveScanning) {
+                    // ~1080p frames: better decode range AND a usable stored
+                    // label photo (the decoding frame is kept as the scan image).
+                    val resolution = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            androidx.camera.core.resolutionselector.ResolutionStrategy(
+                                android.util.Size(1920, 1080),
+                                androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER,
+                            ),
+                        )
+                        .build()
                     add(
                         ImageAnalysis.Builder()
+                            .setResolutionSelector(resolution)
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
                             .also { it.setAnalyzer(analysisExecutor, BarcodeAnalyzer(onBarcodes)) },
@@ -618,14 +629,28 @@ private fun ResultView(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            val thumb = remember(scan.timestamp) { ScanViewModel.decodeThumbnail(scan.thumbnail) }
-            if (thumb != null) {
+            // Prefer the stored viewing-quality label photo; tap for full screen.
+            val labelBmp = remember(scan.timestamp) {
+                ScanViewModel.decodeThumbnail(scan.labelPhoto) ?: ScanViewModel.decodeThumbnail(scan.thumbnail)
+            }
+            var viewingLabel by remember(scan.timestamp) { mutableStateOf(false) }
+            if (labelBmp != null) {
                 androidx.compose.foundation.Image(
-                    bitmap = thumb.asImageBitmap(),
+                    bitmap = labelBmp.asImageBitmap(),
                     contentDescription = "Label photo",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(110.dp).background(Tokens.Panel, RoundedCornerShape(10.dp)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .background(Tokens.Panel, RoundedCornerShape(10.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { viewingLabel = true },
                 )
+                if (viewingLabel) {
+                    com.ssccscanner.ui.FullscreenPhotoOverlay(bitmap = labelBmp, onDismiss = { viewingLabel = false })
+                }
             }
 
             if (!editing && fields.confidence == Confidence.LOW) {
