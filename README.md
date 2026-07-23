@@ -40,9 +40,16 @@ Uploading an existing photo uses the same combined barcode + OCR pipeline.
 
 ## Getting the APK
 
-Every push builds a debug APK on GitHub Actions: open the latest **Android CI**
-run → **Artifacts** → `sscc-scanner-debug-apk`. Install it on any Android 7.0+
-(API 24) device.
+**Easiest (phone-friendly):** every successful build publishes the APK to a
+fixed link — bookmark it and tap to download the newest build any time:
+
+> https://github.com/tilok1234/Sscc-and-barcode/releases/download/latest/sscc-scanner.apk
+
+Updates install straight over the existing app (fixed debug signing key,
+auto-incrementing version). Works on any Android 7.0+ (API 24) device.
+
+Alternatively: open the latest **Android CI** run on the Actions tab →
+**Artifacts** → `sscc-scanner-debug-apk`.
 
 ## Building locally
 
