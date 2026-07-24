@@ -34,14 +34,26 @@ Uploading an existing photo uses the same combined barcode + OCR pipeline.
 ## Features
 
 - Live camera scanning with multi-barcode aggregation (SSCC + GTIN + batch
-  from separate symbols on one label become one scan)
-- Batch mode for back-to-back scanning with zero taps between labels
+  from separate symbols on one label become one scan), center-reticle aim
+  gating, and 1–3× zoom for budget cameras
+- Fields: SSCC, batch, GTIN/EAN, best-before, quantity, article number —
+  with the label photo stored on every scan
+- **Damage register**: flag any scan → evidence photos + timestamped notes
+  → resolve as restored (with corrected quantity) or sanitized; own tab,
+  status icons, shareable report
+- **Batch documents**: named batch runs with zero-tap instant saves, plus a
+  per-batch summary (pallets per batch, mixed best-before dates, expired
+  dates) — also toggleable on normal documents
+- Free editing of every field, backed by an **append-only edit ledger**:
+  originals stay visible (`18 (was 24)`), changes can't be silently erased
+- Notes + photos on every scan and damage report; retention settings
+  auto-compress/auto-delete old entries (damage-flagged scans never
+  auto-delete)
 - Scans filed into named documents (per truck/shipment/day), CSV export per
   document with `Source` provenance column (barcode vs OCR vs manual)
 - Manual correction with live SSCC validation (wrong-length vs bad check
-  digit, distinct messages)
-- Confidence indicator (green/yellow/red) with a low-confidence warning banner
-- Only small thumbnails are stored — hundreds of scans stay lightweight
+  digit, distinct messages) and a confidence indicator with low-confidence
+  warning banner
 
 ## Getting the APK
 
@@ -69,9 +81,20 @@ Requires JDK 17+ and the Android SDK (compileSdk 35):
 
 ```
 core/    Pure-JVM domain logic: Gs1Parser, SsccValidator, LabelTextParser,
-         BarcodeInterpreter, FieldMerger, CsvBuilder — fully unit-tested,
-         buildable without the Android SDK.
-app/     Android app: CameraX + ML Kit scanning pipeline, Room persistence,
-         Jetpack Compose UI following docs/design_handoff/.
-docs/    Original design handoff (spec + web prototypes) and PLAN.md.
+         BarcodeInterpreter, FieldMerger, BatchAnalyzer, CsvBuilder —
+         fully unit-tested, buildable without the Android SDK.
+app/     Android app: CameraX + ML Kit scanning pipeline, Room persistence
+         (v7, additive migrations), Jetpack Compose UI.
+docs/    VISION.md (product vision & principles), HANDOFF.md (developer
+         handoff: state, build pipeline, invariants), and the original
+         design handoff (spec + web prototypes). PLAN.md is the original
+         build plan (historical).
 ```
+
+## Documentation
+
+| Doc | What it is |
+|---|---|
+| [`docs/VISION.md`](docs/VISION.md) | North star: problem context, settled design principles, roadmap |
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Developer handoff: current state, build/CI pipeline, invariants, next steps |
+| [`PLAN.md`](PLAN.md) | Original assessment & build plan (historical) |

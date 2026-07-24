@@ -1,5 +1,12 @@
 # SSCC & Barcode Scanner — Assessment and Implementation Plan
 
+> **Historical document.** This was the original assessment and build plan;
+> all six phases (and six more passes beyond them) have since shipped, and
+> the product was renamed **DCR — Damage Control Register**. For the current
+> vision and principles see `docs/VISION.md`; for project state, build
+> pipeline, and invariants see `docs/HANDOFF.md`. Kept unchanged below for
+> the record.
+
 ## 1. What we have today (assessment)
 
 The uploaded bundle (`docs/design_handoff/`) is a **design handoff, not an app yet**. It contains:
