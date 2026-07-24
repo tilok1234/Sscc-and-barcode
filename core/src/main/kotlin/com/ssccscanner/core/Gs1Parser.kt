@@ -155,6 +155,9 @@ object Gs1Parser {
         val dateRaw = ais["15"] ?: ais["17"] ?: ais["16"]
         val bestBefore = dateRaw?.let { formatGs1Date(it, currentYear) }
         val quantity = ais["37"]?.trimStart('0')?.ifEmpty { "0" }
+        // (240)/(241) = additional/customer product identification — the usual
+        // home of a company article number on relabeled pallets
+        val articleNo = (ais["240"] ?: ais["241"])?.trim()
 
         val ssccValid = sscc != null && SsccValidator.isValid(sscc)
         val confidence = when {
@@ -170,6 +173,7 @@ object Gs1Parser {
             gtin = gtin,
             bestBefore = bestBefore,
             quantity = quantity,
+            articleNo = articleNo,
             confidence = confidence,
             source = ScanSource.BARCODE,
         )

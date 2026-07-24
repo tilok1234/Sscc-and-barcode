@@ -117,6 +117,7 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
             gtin = fields.gtin,
             bestBefore = fields.bestBefore,
             quantity = fields.quantity,
+            articleNo = fields.articleNo,
             confidence = fields.confidence.name.lowercase(),
             source = fields.source.name.lowercase(),
             edited = false,
@@ -138,6 +139,7 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
                 gtin = fields.gtin,
                 bestBefore = fields.bestBefore,
                 quantity = fields.quantity,
+                articleNo = fields.articleNo,
                 edited = true,
                 // Preserve the as-scanned count the first time it changes.
                 originalQuantity = existing.originalQuantity
@@ -172,6 +174,7 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         log("gtin", existing.gtin, new.gtin)
         log("bestBefore", existing.bestBefore, new.bestBefore)
         log("quantity", existing.quantity, new.quantity)
+        log("articleNo", existing.articleNo, new.articleNo)
     }
 
     fun fieldEdits(scanId: String): Flow<List<FieldEditEntity>> = scanDao.fieldEditsForScan(scanId)
@@ -418,6 +421,7 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
             gtin = scan.gtin,
             bestBefore = scan.bestBefore,
             quantity = scan.quantity,
+            articleNo = scan.articleNo,
             confidence = confidenceOf(scan),
             source = sourceOf(scan),
         )

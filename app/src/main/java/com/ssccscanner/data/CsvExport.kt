@@ -35,6 +35,7 @@ object CsvExport {
                     edited = s.edited,
                     scannedAtIso = iso.format(Date(s.timestamp)),
                     damaged = s.id in damagedScanIds,
+                    articleNo = s.articleNo,
                 )
             },
         )

@@ -151,6 +151,13 @@ fun ScanScreen(
     var pickerOpen by remember { mutableStateOf(false) }
     var batchPromptOpen by remember { mutableStateOf(false) }
 
+    // Zoom for budget cameras that can't focus up close: stand back and zoom in.
+    var zoomRatio by remember { mutableStateOf(1f) }
+    var camera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+    LaunchedEffect(camera, zoomRatio) {
+        camera?.cameraControl?.setZoomRatio(zoomRatio)
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Tokens.CameraSurface)) {
         when (val flow = state.flow) {
             is ScanFlow.Ready -> {
@@ -159,12 +166,21 @@ fun ScanScreen(
                         liveScanning = state.scanMode == ScanMode.BARCODE,
                         onBarcodes = viewModel::onBarcodesDetected,
                         imageCapture = imageCapture,
+                        onCamera = { camera = it },
                     )
                     ReadyOverlay(
                         scanMode = state.scanMode,
                         batchMode = state.batchMode,
                         batchCount = state.batchCount,
                         documentName = state.activeDocumentName,
+                        zoomRatio = zoomRatio,
+                        onCycleZoom = {
+                            zoomRatio = when {
+                                zoomRatio < 1.5f -> 2f
+                                zoomRatio < 2.5f -> 3f
+                                else -> 1f
+                            }
+                        },
                         onSetMode = viewModel::setScanMode,
                         // Turning batch ON first asks for a batch document name.
                         onToggleBatch = { on ->
@@ -366,6 +382,7 @@ private fun CameraPreviewLayer(
     liveScanning: Boolean,
     onBarcodes: (List<DetectedBarcode>, android.graphics.Bitmap?) -> Unit,
     imageCapture: ImageCapture,
+    onCamera: (androidx.camera.core.Camera?) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -408,17 +425,19 @@ private fun CameraPreviewLayer(
             }
             try {
                 p.unbindAll()
-                p.bindToLifecycle(
+                val cam = p.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
                     *useCases.toTypedArray(),
                 )
+                onCamera(cam)
             } catch (_: Exception) {
                 // Camera unavailable (emulator without camera etc.) — leave preview black.
             }
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
+            onCamera(null)
             provider?.unbindAll()
             analysisExecutor.shutdown()
         }
@@ -435,6 +454,8 @@ private fun ReadyOverlay(
     batchMode: Boolean,
     batchCount: Int,
     documentName: String,
+    zoomRatio: Float,
+    onCycleZoom: () -> Unit,
     onSetMode: (ScanMode) -> Unit,
     onToggleBatch: (Boolean) -> Unit,
     onUpload: () -> Unit,
@@ -502,16 +523,39 @@ private fun ReadyOverlay(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Scanning reticle — barcode-shaped, or taller to frame a whole label
+        // Scanning reticle — barcode-shaped, or taller to frame a whole label.
+        // The zoom pill sits on the reticle's corner for one-thumb reach.
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Box(
                 modifier = Modifier
                     .size(
-                        width = if (scanMode == ScanMode.BARCODE) 264.dp else 280.dp,
-                        height = if (scanMode == ScanMode.BARCODE) 160.dp else 330.dp,
+                        width = if (scanMode == ScanMode.BARCODE) 310.dp else 310.dp,
+                        height = if (scanMode == ScanMode.BARCODE) 195.dp else 350.dp,
                     )
                     .border(1.5.dp, Tokens.ink(0.4f), RoundedCornerShape(14.dp)),
-            )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        .border(1.dp, Tokens.ink(0.3f), CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onCycleZoom,
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = "${zoomRatio.toInt()}×",
+                        color = if (zoomRatio > 1f) Tokens.Accent else Tokens.TextPrimary,
+                        fontFamily = PlexMono,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(14.dp))
         Text(
@@ -715,6 +759,7 @@ private fun ResultView(
     var editGtin by remember(scan.timestamp) { mutableStateOf(fields.gtin.orEmpty()) }
     var editBestBefore by remember(scan.timestamp) { mutableStateOf(fields.bestBefore.orEmpty()) }
     var editQuantity by remember(scan.timestamp) { mutableStateOf(fields.quantity.orEmpty()) }
+    var editArticle by remember(scan.timestamp) { mutableStateOf(fields.articleNo.orEmpty()) }
 
     val statusColor = when (fields.confidence) {
         Confidence.HIGH -> Tokens.Success
@@ -874,7 +919,10 @@ private fun ResultView(
                         FieldLabel("Quantity", small = true)
                         EditField(value = editQuantity, onChange = { editQuantity = it.filter(Char::isDigit) }, mono = true, numeric = true, fontSize = 13.sp)
                     }
-                    Spacer(modifier = Modifier.weight(1f))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FieldLabel("Article no.", small = true)
+                        EditField(value = editArticle, onChange = { editArticle = it }, mono = true, fontSize = 13.sp)
+                    }
                 }
             } else {
                 DataField(label = "SSCC", value = fields.sscc, big = true, onCopy = { text ->
@@ -891,6 +939,12 @@ private fun ResultView(
                     SmallField(label = "GTIN/EAN", value = fields.gtin, modifier = Modifier.weight(1f))
                     SmallField(label = "Best before", value = fields.bestBefore, modifier = Modifier.weight(1f))
                     SmallField(label = "Quantity", value = fields.quantity, modifier = Modifier.weight(1f))
+                }
+                if (fields.articleNo != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SmallField(label = "Article no.", value = fields.articleNo, modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.weight(2f))
+                    }
                 }
 
                 // Damage flow: flags this pallet and jumps to its damage report
@@ -960,6 +1014,7 @@ private fun ResultView(
                                     gtin = editGtin.trim().ifEmpty { null },
                                     bestBefore = editBestBefore.trim().ifEmpty { null },
                                     quantity = editQuantity.trim().ifEmpty { null },
+                                    articleNo = editArticle.trim().ifEmpty { null },
                                 ),
                             )
                             editing = false

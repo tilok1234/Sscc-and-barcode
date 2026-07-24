@@ -84,6 +84,17 @@ object LabelTextParser {
 
         val quantity = lineValue(Regex("""(?:quantity|qty|count|antal)\s*[.:]?\s*([0-9]+)""", RegexOption.IGNORE_CASE))
 
+        // Article number: "Art.nr", "Artikkel", "Article no", "Item no" — else GS1 AI (240)/(241)
+        var articleNo = lineValue(
+            Regex(
+                """(?:art(?:ikkel|icle)?|item)\s*\.?\s*(?:no|nr|number)?\s*[.:]?\s*([A-Za-z0-9\-]{3,20})""",
+                RegexOption.IGNORE_CASE,
+            ),
+        )
+        if (articleNo == null) {
+            articleNo = Regex("""\(24[01]\)\s*([A-Za-z0-9\-]{2,25})""").find(joined)?.groupValues?.get(1)
+        }
+
         val confidence = when {
             ssccValid && ocrConfidencePercent >= 80f -> Confidence.HIGH
             ssccValid || ocrConfidencePercent >= 75f -> Confidence.MEDIUM
@@ -96,6 +107,7 @@ object LabelTextParser {
             gtin = gtin,
             bestBefore = bestBefore,
             quantity = quantity,
+            articleNo = articleNo,
             confidence = confidence,
             source = ScanSource.OCR,
         )

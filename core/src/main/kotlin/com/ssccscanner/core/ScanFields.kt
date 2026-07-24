@@ -16,6 +16,7 @@ data class ScanFields(
     val gtin: String? = null,        // 8–14 digits as printed/encoded
     val bestBefore: String? = null,  // as read/typed or ISO-formatted from GS1 date
     val quantity: String? = null,
+    val articleNo: String? = null,   // company article number (AI 240/241 or printed "Art.nr")
     val confidence: Confidence = Confidence.LOW,
     val source: ScanSource = ScanSource.OCR,
 ) {

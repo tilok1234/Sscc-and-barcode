@@ -19,6 +19,7 @@ object FieldMerger {
             gtin = barcode.gtin ?: ocr.gtin,
             bestBefore = barcode.bestBefore ?: ocr.bestBefore,
             quantity = barcode.quantity ?: ocr.quantity,
+            articleNo = barcode.articleNo ?: ocr.articleNo,
             confidence = if (barcode.confidence.ordinal <= ocr.confidence.ordinal) barcode.confidence else ocr.confidence,
             source = if (usedAnyOcrField(barcode, ocr)) ScanSource.MIXED else ScanSource.BARCODE,
         )
@@ -35,6 +36,7 @@ object FieldMerger {
                 gtin = acc.gtin ?: next.gtin,
                 bestBefore = acc.bestBefore ?: next.bestBefore,
                 quantity = acc.quantity ?: next.quantity,
+                articleNo = acc.articleNo ?: next.articleNo,
                 confidence = if (next.confidence.ordinal < acc.confidence.ordinal) next.confidence else acc.confidence,
             )
         }
@@ -45,6 +47,7 @@ object FieldMerger {
             (barcode.batchNo == null && ocr.batchNo != null) ||
             (barcode.gtin == null && ocr.gtin != null) ||
             (barcode.bestBefore == null && ocr.bestBefore != null) ||
-            (barcode.quantity == null && ocr.quantity != null)
+            (barcode.quantity == null && ocr.quantity != null) ||
+            (barcode.articleNo == null && ocr.articleNo != null)
     }
 }

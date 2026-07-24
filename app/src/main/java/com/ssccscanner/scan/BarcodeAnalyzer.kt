@@ -61,8 +61,8 @@ class BarcodeAnalyzer(
                     val box = b.boundingBox ?: return@filter true
                     val cx = box.exactCenterX()
                     val cy = box.exactCenterY()
-                    cx >= frameW * 0.18f && cx <= frameW * 0.82f &&
-                        cy >= frameH * 0.25f && cy <= frameH * 0.75f
+                    cx >= frameW * 0.12f && cx <= frameW * 0.88f &&
+                        cy >= frameH * 0.20f && cy <= frameH * 0.80f
                 }
                 if (barcodes.isNotEmpty()) {
                     // Convert only frames that decoded something — this frame

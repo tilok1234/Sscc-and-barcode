@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DamageReportEntity::class, DamagePhotoEntity::class, DamageNoteEntity::class,
         ScanNoteEntity::class, ScanPhotoEntity::class, FieldEditEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class ScannerDatabase : RoomDatabase() {
@@ -135,9 +135,19 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        /** v6 → v7: article number on scans. */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `scans` ADD COLUMN `articleNo` TEXT")
+            }
+        }
+
         fun build(context: Context): ScannerDatabase =
             Room.databaseBuilder(context, ScannerDatabase::class.java, "sscc-scanner.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+                    MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                )
                 .fallbackToDestructiveMigration()
                 .build()
     }

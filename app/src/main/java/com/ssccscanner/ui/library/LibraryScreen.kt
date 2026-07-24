@@ -575,6 +575,7 @@ private fun ScanDetail(
     var editGtin by remember(scan.id) { mutableStateOf(scan.gtin.orEmpty()) }
     var editBestBefore by remember(scan.id) { mutableStateOf(scan.bestBefore.orEmpty()) }
     var editQuantity by remember(scan.id) { mutableStateOf(scan.quantity.orEmpty()) }
+    var editArticle by remember(scan.id) { mutableStateOf(scan.articleNo.orEmpty()) }
 
     var pendingCaptureUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val takePicture = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -650,6 +651,7 @@ private fun ScanDetail(
                             editGtin = scan.gtin.orEmpty()
                             editBestBefore = scan.bestBefore.orEmpty()
                             editQuantity = scan.quantity.orEmpty()
+                            editArticle = scan.articleNo.orEmpty()
                             editing = true
                         }
                         .padding(horizontal = 10.dp, vertical = 5.dp),
@@ -742,6 +744,10 @@ private fun ScanDetail(
                         ScanEditField(value = editQuantity, onChange = { editQuantity = it.filter(Char::isDigit) })
                     }
                 }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ScanEditLabel("Article no.")
+                    ScanEditField(value = editArticle, onChange = { editArticle = it })
+                }
                 Text(
                     text = "Every change is recorded in the edit history below — the original values always stay on file.",
                     color = Tokens.ink(0.45f),
@@ -771,6 +777,12 @@ private fun ScanDetail(
                         } ?: scan.originalQuantity?.let { "— (was $it)" },
                         Modifier.weight(1f),
                     )
+                }
+                if (scan.articleNo != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        MiniField("Article no.", scan.articleNo, Modifier.weight(1f))
+                        Spacer(modifier = Modifier.weight(2f))
+                    }
                 }
             }
 
@@ -871,6 +883,7 @@ private fun ScanDetail(
                                     gtin = editGtin.trim().ifEmpty { null },
                                     bestBefore = editBestBefore.trim().ifEmpty { null },
                                     quantity = editQuantity.trim().ifEmpty { null },
+                                    articleNo = editArticle.trim().ifEmpty { null },
                                 ),
                             )
                             editing = false
@@ -1012,6 +1025,7 @@ private val FIELD_LABELS = mapOf(
     "gtin" to "GTIN/EAN",
     "bestBefore" to "Best before",
     "quantity" to "Quantity",
+    "articleNo" to "Article no.",
 )
 
 /** Read-only, append-only record of every manual field change on this scan. */

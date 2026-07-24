@@ -47,6 +47,8 @@ data class ScanEntity(
     val labelPhotoPath: String? = null,
     // Set once, on the first quantity edit — preserves the as-scanned count
     val originalQuantity: String? = null,
+    // Company article number (GS1 AI 240/241 or printed "Art.nr")
+    val articleNo: String? = null,
 ) {
     override fun equals(other: Any?): Boolean = other is ScanEntity && other.id == id
     override fun hashCode(): Int = id.hashCode()
