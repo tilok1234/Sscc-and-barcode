@@ -102,14 +102,7 @@ fun BottomNav(
                 modifier = Modifier.weight(1f),
                 onClick = { onSelect(AppTab.Scan) },
             )
-            NavItem(
-                label = "Library",
-                icon = AppIcons.Document,
-                selected = activeTab == AppTab.Library,
-                modifier = Modifier.weight(1f),
-                badgeCount = libraryBadgeCount,
-                onClick = { onSelect(AppTab.Library) },
-            )
+            // Damage sits center — it's the product's heart (see docs/VISION.md)
             NavItem(
                 label = "Damage",
                 icon = AppIcons.Alert,
@@ -117,6 +110,14 @@ fun BottomNav(
                 modifier = Modifier.weight(1f),
                 badgeCount = damageBadgeCount,
                 onClick = { onSelect(AppTab.Damage) },
+            )
+            NavItem(
+                label = "Library",
+                icon = AppIcons.Document,
+                selected = activeTab == AppTab.Library,
+                modifier = Modifier.weight(1f),
+                badgeCount = libraryBadgeCount,
+                onClick = { onSelect(AppTab.Library) },
             )
         }
     }
