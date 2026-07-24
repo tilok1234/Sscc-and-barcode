@@ -139,6 +139,14 @@ Pipeline: phone-only. CI builds every push; fixed download link
 
 1. **Now — field-test iteration.** Tune parser/UX from real labels and
    misreads. Refine article-number extraction from actual label photos.
+1b. **Backup/restore, then applicationId cutover.** The current
+   applicationId (`com.ssccscanner`) is a field-test convenience, NOT the
+   final ID — kept only so test installs retain data across updates. Before
+   anything commercial (and before any second device): build full
+   export/import (scans, damage reports, notes, photos, ledger — the same
+   serialization the sync layer needs anyway), then cut over to a final,
+   owned ID (e.g. `io.github.<owner>.dcr`) in one clean break. Test data is
+   disposable; the principle — no convenience calcifying into debt — is not.
 2. **Central sync (opt-in).** Small server owned by the operator
    (**PocketBase** on a cheap VPS/NAS is the recommendation; Supabase if
    hosting nothing is preferred). App gets "Send to server" (URL + key in
