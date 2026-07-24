@@ -1,9 +1,14 @@
-# SSCC Scanner
+# DCR — Damage Control Register
 
-A standalone Android app for warehouse/logistics workers: point the camera at a
-GS1 shipping label and get the **SSCC**, **batch number**, **GTIN/EAN**,
-**best-before date**, and **quantity** as clean, copyable text — no retyping,
-no accounts, no cloud.
+A standalone Android app for warehouse/factory floor workers: scan a GS1
+pallet label in a second (SSCC, batch, GTIN/EAN, article number, best-before,
+quantity), and when goods arrive damaged, file a **damage report** — evidence
+photos, timestamped notes, restored/sanitized resolution — into the app's
+register. Replaces retyping 18-digit codes *and* the paper damage sheet.
+No accounts, no cloud.
+
+*(Formerly "SSCC Scanner" — renamed when the damage register became the
+product's center; see docs/VISION.md.)*
 
 **Everything runs on-device.** Barcode decoding and OCR use Google ML Kit's
 bundled models; nothing ever leaves the phone. Works in airplane mode.

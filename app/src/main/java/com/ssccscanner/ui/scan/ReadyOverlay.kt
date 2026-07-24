@@ -330,7 +330,7 @@ private fun ModeSegment(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun Wordmark() {
     Text(
-        text = "SSCC",
+        text = "DCR",
         color = Tokens.ink(0.85f),
         fontFamily = PlexMono,
         fontWeight = FontWeight.Bold,
@@ -355,7 +355,7 @@ internal fun PermissionFallback(onRequest: () -> Unit, onUpload: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "SSCC Scanner reads the barcodes on GS1 shipping labels with your camera — nothing ever leaves the device.",
+            text = "DCR reads the barcodes on GS1 shipping labels with your camera — nothing ever leaves the device.",
             textAlign = TextAlign.Center,
             color = Tokens.ink(0.5f),
             fontFamily = PlexSans,

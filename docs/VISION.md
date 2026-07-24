@@ -1,4 +1,10 @@
-# SSCC Scanner — Vision & Design Principles
+# DCR (Damage Control Register) — Vision & Design Principles
+
+*Name decided 2026-07-25: **DCR — Damage Control Register**, following the
+industry's descriptor-initialism convention (WMS, ERP, SAP). "Nova DCR" is
+reserved as the optional brand layer (brand + initialism, like "Astro WMS")
+if this ever ships as a product. The technical applicationId keeps its
+original value so installed devices retain their data across the rename.*
 
 *Captured 2026-07-25 from design discussions during the first field-test week.
 This is the north-star document: when a feature decision is unclear, check it
