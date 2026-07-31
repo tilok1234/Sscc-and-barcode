@@ -186,5 +186,23 @@ Pipeline: phone-only. CI builds every push; fixed download link
 - Consider a `sync/` module skeleton so principle #4's schema constraints
   are encoded in code review, not memory.
 
+## 8. Direction addendum (2026-07-31): experimental toolbox track
+
+Owner's decision: alongside the field test, the app takes a **more
+experimental route** — building in whatever small tools prove handy on the
+floor, as they come up. This does NOT replace the damage-register idea; the
+prototype stays a prototype and the DCR core (scan → damage lifecycle) is
+unchanged. It adds a parallel track for exploring more systems.
+
+- Tools live in their own **Tools tab** (a hub of cards, one screen per
+  tool), so experiments never touch the scan/damage code paths.
+- First two tools: **Schedule** (expected appointments with a timestamped
+  note log) and **Articles** (article registry: number, name, GTIN, label
+  photos, notes). More will follow as ideas surface.
+- All principles in §3 apply to tools too — on-device, no internet
+  permission, no fabricated data, additive migrations only.
+- Tools are the most disposable layer of the prototype: they earn their
+  keep in field use or get dropped before any commercial spec is distilled.
+
 *This document supersedes chat history. Update it when principles change —
 and changing §3 requires a better argument than convenience.*

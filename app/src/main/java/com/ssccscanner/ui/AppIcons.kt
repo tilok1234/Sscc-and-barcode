@@ -209,6 +209,50 @@ object AppIcons {
         }
     }
 
+    val Grid: ImageVector by lazy {
+        strokeIcon("Grid") {
+            moveTo(4.5f, 4.5f); lineTo(10.5f, 4.5f); lineTo(10.5f, 10.5f); lineTo(4.5f, 10.5f); close()
+            moveTo(13.5f, 4.5f); lineTo(19.5f, 4.5f); lineTo(19.5f, 10.5f); lineTo(13.5f, 10.5f); close()
+            moveTo(4.5f, 13.5f); lineTo(10.5f, 13.5f); lineTo(10.5f, 19.5f); lineTo(4.5f, 19.5f); close()
+            moveTo(13.5f, 13.5f); lineTo(19.5f, 13.5f); lineTo(19.5f, 19.5f); lineTo(13.5f, 19.5f); close()
+        }
+    }
+
+    val Calendar: ImageVector by lazy {
+        strokeIcon("Calendar") {
+            // frame
+            moveTo(4.0f, 6.5f)
+            lineTo(20.0f, 6.5f)
+            lineTo(20.0f, 20.0f)
+            lineTo(4.0f, 20.0f)
+            close()
+            // binding pins
+            moveTo(8.0f, 4.0f); lineTo(8.0f, 8.5f)
+            moveTo(16.0f, 4.0f); lineTo(16.0f, 8.5f)
+            // header rule
+            moveTo(4.0f, 11.0f); lineTo(20.0f, 11.0f)
+        }
+    }
+
+    val Tag: ImageVector by lazy {
+        strokeIcon("Tag") {
+            // tag body
+            moveTo(4.0f, 4.0f)
+            lineTo(11.5f, 4.0f)
+            lineTo(20.0f, 12.5f)
+            lineTo(12.5f, 20.0f)
+            lineTo(4.0f, 11.5f)
+            close()
+            // eyelet
+            moveTo(8.3f, 8.0f)
+            curveTo(8.3f, 8.17f, 8.17f, 8.3f, 8.0f, 8.3f)
+            curveTo(7.83f, 8.3f, 7.7f, 8.17f, 7.7f, 8.0f)
+            curveTo(7.7f, 7.83f, 7.83f, 7.7f, 8.0f, 7.7f)
+            curveTo(8.17f, 7.7f, 8.3f, 7.83f, 8.3f, 8.0f)
+            close()
+        }
+    }
+
     private fun strokeIcon(name: String, block: PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(
             name = name,

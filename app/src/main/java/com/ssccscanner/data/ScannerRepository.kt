@@ -387,14 +387,139 @@ class ScannerRepository(private val context: Context, private val db: ScannerDat
         }
     }
 
-    /** Total bytes of stored label + damage photos, for the settings sheet. */
+    /** Total bytes of stored label + damage + article photos, for the settings sheet. */
     fun photoStorageBytes(): Long {
         var total = 0L
-        for (dir in listOf(labelPhotoDir(), photoDir())) {
+        for (dir in listOf(labelPhotoDir(), photoDir(), articlePhotoDir())) {
             dir.listFiles()?.forEach { total += it.length() }
         }
         return total
     }
+
+    // --- Tools: appointment schedule ---
+
+    private val appointmentDao = db.appointmentDao()
+
+    val appointments: Flow<List<AppointmentWithNotes>> = appointmentDao.appointmentsWithNotes()
+
+    fun upcomingAppointmentCount(from: Long): Flow<Int> = appointmentDao.upcomingCount(from)
+
+    suspend fun addAppointment(title: String, at: Long, location: String?): AppointmentEntity {
+        val appointment = AppointmentEntity(
+            id = newId(),
+            title = title.trim(),
+            at = at,
+            location = location?.trim()?.ifEmpty { null },
+            createdAt = System.currentTimeMillis(),
+        )
+        appointmentDao.upsert(appointment)
+        return appointment
+    }
+
+    suspend fun updateAppointment(id: String, title: String, at: Long, location: String?) {
+        val existing = appointmentDao.byId(id) ?: return
+        appointmentDao.upsert(
+            existing.copy(title = title.trim(), at = at, location = location?.trim()?.ifEmpty { null }),
+        )
+    }
+
+    suspend fun setAppointmentDone(id: String, done: Boolean) = appointmentDao.setDone(id, done)
+
+    suspend fun deleteAppointment(id: String) = appointmentDao.delete(id)
+
+    suspend fun addAppointmentNote(appointmentId: String, text: String) {
+        if (text.isBlank()) return
+        appointmentDao.upsertNote(
+            AppointmentNoteEntity(
+                id = newId(),
+                appointmentId = appointmentId,
+                text = text.trim(),
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    suspend fun updateAppointmentNote(id: String, text: String) {
+        if (text.isBlank()) return
+        appointmentDao.updateNoteText(id, text.trim())
+    }
+
+    suspend fun deleteAppointmentNote(id: String) = appointmentDao.deleteNote(id)
+
+    // --- Tools: article registry ---
+
+    private val articleDao = db.articleDao()
+
+    private fun articlePhotoDir(): java.io.File =
+        java.io.File(context.filesDir, "article_photos").apply { mkdirs() }
+
+    val articles: Flow<List<ArticleWithAttachments>> = articleDao.articlesWithAttachments()
+
+    val articleCount: Flow<Int> = articleDao.count()
+
+    suspend fun addArticle(articleNo: String, name: String?, gtin: String?): ArticleEntity {
+        val article = ArticleEntity(
+            id = newId(),
+            articleNo = articleNo.trim(),
+            name = name?.trim()?.ifEmpty { null },
+            gtin = gtin?.trim()?.ifEmpty { null },
+            createdAt = System.currentTimeMillis(),
+        )
+        articleDao.upsert(article)
+        return article
+    }
+
+    suspend fun updateArticle(id: String, articleNo: String, name: String?, gtin: String?) {
+        val existing = articleDao.byId(id) ?: return
+        articleDao.upsert(
+            existing.copy(
+                articleNo = articleNo.trim(),
+                name = name?.trim()?.ifEmpty { null },
+                gtin = gtin?.trim()?.ifEmpty { null },
+            ),
+        )
+    }
+
+    suspend fun deleteArticle(id: String) {
+        articleDao.photosFor(id).forEach { runCatching { java.io.File(it.filePath).delete() } }
+        articleDao.delete(id) // photo/note rows cascade
+    }
+
+    suspend fun addArticlePhoto(articleId: String, jpegBytes: ByteArray): ArticlePhotoEntity {
+        val photo = ArticlePhotoEntity(
+            id = newId(),
+            articleId = articleId,
+            filePath = java.io.File(articlePhotoDir(), "${newId()}.jpg").absolutePath,
+            createdAt = System.currentTimeMillis(),
+        )
+        java.io.File(photo.filePath).writeBytes(jpegBytes)
+        articleDao.upsertPhoto(photo)
+        return photo
+    }
+
+    suspend fun deleteArticlePhoto(photo: ArticlePhotoEntity) {
+        articleDao.deletePhoto(photo.id)
+        runCatching { java.io.File(photo.filePath).delete() }
+    }
+
+    suspend fun addArticleNote(articleId: String, text: String) {
+        if (text.isBlank()) return
+        articleDao.upsertNote(
+            ArticleNoteEntity(
+                id = newId(),
+                articleId = articleId,
+                text = text.trim(),
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    suspend fun updateArticleNote(id: String, text: String) {
+        if (text.isBlank()) return
+        articleDao.updateNoteText(id, text.trim())
+    }
+
+    suspend fun deleteArticleNote(id: String) = articleDao.deleteNote(id)
 
     // --- Scan mode (barcode = live auto-scan, label = shutter-driven full-label read) ---
 

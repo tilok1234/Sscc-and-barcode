@@ -54,6 +54,10 @@ Uploading an existing photo uses the same combined barcode + OCR pipeline.
 - Manual correction with live SSCC validation (wrong-length vs bad check
   digit, distinct messages) and a confidence indicator with low-confidence
   warning banner
+- **Tools tab** (experimental toolbox): an appointment **Schedule** with
+  per-appointment note logs, and an **Article registry** (article number,
+  name, GTIN, label photos, notes) with instant search — more small tools
+  land here as they prove handy
 
 ## Getting the APK
 

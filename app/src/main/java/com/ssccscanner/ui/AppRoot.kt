@@ -36,11 +36,11 @@ import com.ssccscanner.ui.scan.ScanScreen
 import com.ssccscanner.ui.theme.PlexSans
 import com.ssccscanner.ui.theme.Tokens
 
-enum class AppTab { Scan, Library, Damage }
+enum class AppTab { Scan, Library, Damage, Tools }
 
 /**
- * Single persistent app shell — three tabs, no routing, matching the handoff's
- * state model.
+ * Single persistent app shell — four tabs, no routing, matching the handoff's
+ * state model. Tools is the experimental toolbox (schedule, article registry).
  */
 @Composable
 fun AppRoot() {
@@ -48,6 +48,8 @@ fun AppRoot() {
     val toast = remember { ToastController() }
     val documentsViewModel: DocumentsViewModel = viewModel()
     val damageViewModel: com.ssccscanner.ui.damage.DamageViewModel = viewModel()
+    val scheduleViewModel: com.ssccscanner.ui.tools.ScheduleViewModel = viewModel()
+    val articlesViewModel: com.ssccscanner.ui.tools.ArticlesViewModel = viewModel()
     val totalScans by documentsViewModel.totalScanCount.collectAsState()
     val damageCount by damageViewModel.count.collectAsState()
 
@@ -71,6 +73,10 @@ fun AppRoot() {
                             onReportDamage = damageViewModel::reportDamage,
                         )
                         AppTab.Damage -> com.ssccscanner.ui.damage.DamageScreen(viewModel = damageViewModel)
+                        AppTab.Tools -> com.ssccscanner.ui.tools.ToolsScreen(
+                            scheduleViewModel = scheduleViewModel,
+                            articlesViewModel = articlesViewModel,
+                        )
                     }
                 }
                 BottomNav(
@@ -118,6 +124,13 @@ fun BottomNav(
                 modifier = Modifier.weight(1f),
                 badgeCount = libraryBadgeCount,
                 onClick = { onSelect(AppTab.Library) },
+            )
+            NavItem(
+                label = "Tools",
+                icon = AppIcons.Grid,
+                selected = activeTab == AppTab.Tools,
+                modifier = Modifier.weight(1f),
+                onClick = { onSelect(AppTab.Tools) },
             )
         }
     }

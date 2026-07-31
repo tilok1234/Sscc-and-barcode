@@ -12,14 +12,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DocumentEntity::class, ScanEntity::class,
         DamageReportEntity::class, DamagePhotoEntity::class, DamageNoteEntity::class,
         ScanNoteEntity::class, ScanPhotoEntity::class, FieldEditEntity::class,
+        AppointmentEntity::class, AppointmentNoteEntity::class,
+        ArticleEntity::class, ArticlePhotoEntity::class, ArticleNoteEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class ScannerDatabase : RoomDatabase() {
     abstract fun documentDao(): DocumentDao
     abstract fun scanDao(): ScanDao
     abstract fun damageDao(): DamageDao
+    abstract fun appointmentDao(): AppointmentDao
+    abstract fun articleDao(): ArticleDao
 
     companion object {
 
@@ -142,11 +146,71 @@ abstract class ScannerDatabase : RoomDatabase() {
             }
         }
 
+        /** v7 → v8: Tools tab tables (appointments + article registry). Additive. */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `appointments` (
+                        `id` TEXT NOT NULL, `title` TEXT NOT NULL,
+                        `at` INTEGER NOT NULL, `location` TEXT,
+                        `done` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_appointments_at` ON `appointments` (`at`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `appointment_notes` (
+                        `id` TEXT NOT NULL, `appointmentId` TEXT NOT NULL,
+                        `text` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`appointmentId`) REFERENCES `appointments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_appointment_notes_appointmentId` ON `appointment_notes` (`appointmentId`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `articles` (
+                        `id` TEXT NOT NULL, `articleNo` TEXT NOT NULL,
+                        `name` TEXT, `gtin` TEXT, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_articles_articleNo` ON `articles` (`articleNo`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `article_photos` (
+                        `id` TEXT NOT NULL, `articleId` TEXT NOT NULL,
+                        `filePath` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`articleId`) REFERENCES `articles`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_article_photos_articleId` ON `article_photos` (`articleId`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `article_notes` (
+                        `id` TEXT NOT NULL, `articleId` TEXT NOT NULL,
+                        `text` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`articleId`) REFERENCES `articles`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_article_notes_articleId` ON `article_notes` (`articleId`)")
+            }
+        }
+
         fun build(context: Context): ScannerDatabase =
             Room.databaseBuilder(context, ScannerDatabase::class.java, "sscc-scanner.db")
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                    MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                    MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 )
                 .fallbackToDestructiveMigration()
                 .build()

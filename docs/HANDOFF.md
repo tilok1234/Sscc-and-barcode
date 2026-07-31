@@ -49,13 +49,15 @@ core/    Pure-JVM Kotlin module (no Android SDK) — all domain logic, fully
   ScanFields.kt        The shared field container + confidence/source enums
 
 app/     Android app (Kotlin + Jetpack Compose, Material 3 custom dark theme)
-  data/      Room database (v7), DataStore prefs, repository, CSV share
+  data/      Room database (v8), DataStore prefs, repository, CSV share
     Entities.kt        Documents, scans (labelPhotoPath, originalQuantity,
                        articleNo, isBatch, showSummary), scan notes/photos,
                        field_edits (append-only edit ledger)
     DamageEntities.kt  Damage reports (open/restored/sanitized), damage
                        notes (kind: note/restored/sanitized), damage photos
-    ScannerDatabase.kt Room v7; MIGRATION_1_2 … 6_7, all additive SQL
+    ToolsEntities.kt   Tools-tab tables: appointments (+notes), articles
+                       (+photos/notes) — see VISION §8
+    ScannerDatabase.kt Room v8; MIGRATION_1_2 … 7_8, all additive SQL
     ScannerRepository.kt  All business operations; logFieldEdits() appends
                        old→new diffs BEFORE overwriting; retention cleanup
                        (auto-compress/auto-delete; damage-flagged scans are
@@ -70,7 +72,7 @@ app/     Android app (Kotlin + Jetpack Compose, Material 3 custom dark theme)
     StillImageProcessor.kt  Shutter/gallery path: barcode + OCR merged
     ImageUtils.kt      Scaled decode (bounds-pass bug fixed — see §6),
                        label/evidence/thumbnail JPEG budgets
-  ui/        Compose screens; tab order Scan | Damage | Library
+  ui/        Compose screens; tab order Scan | Damage | Library | Tools
     scan/      ScanScreen (camera/processing/error, zoom 1→2→3×),
                ReadyOverlay (reticle, mode toggle, batch prompt), ResultView
     library/   LibraryScreen (doc list, Σ summary toggle), DocumentDetail
@@ -78,6 +80,10 @@ app/     Android app (Kotlin + Jetpack Compose, Material 3 custom dark theme)
                read-only edit-history box, "N (was M)" quantities)
     damage/    DamageScreen (status icons/filters, status-note composer,
                qty-after-restore field), DamageViewModel
+    tools/     The experimental toolbox (VISION §8): ToolsScreen hub +
+               ScheduleScreen (appointments) + ArticlesScreen (article
+               registry). New tools = new card in the hub + own screen;
+               never touch the scan/damage paths.
     components/Components.kt  THE shared button/pill/field composables —
                do not re-create local copies
     AttachmentSections.kt / PhotoViewer.kt  notes+photos UI shared by
@@ -173,6 +179,12 @@ The `latest` release is deleted and recreated each build (title
 labels during normal work — collecting label diversity, misreads, and
 UX feel (aim gating, 1.2 s merge window, zoom). Discretion rule: only
 physical labels passing through their hands; no bulk WMS exports.
+
+**Also running: the experimental toolbox track** (VISION §8, decided
+2026-07-31). Small handy tools get built into the Tools tab as the owner
+thinks of them — Schedule and Articles are the first two. The DCR core is
+unchanged; tools are additive experiments and the most disposable part of
+the prototype.
 
 **Awaiting from the owner** (blocks the next work, in rough order):
 1. Field-test findings → parser/UX tuning.
